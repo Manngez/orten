@@ -15,7 +15,7 @@ export interface GameRecord {
   eliminationOrder: EliminationEvent[]; mode: GameMode; scores: number[];
 }
 export interface GameState {
-  phase: GamePhase; mode: GameMode; country: Country; players: string[]; eliminated: boolean[];
+  phase: GamePhase; mode: GameMode; country: Country; finlandUnlocked: boolean; players: string[]; eliminated: boolean[];
   eliminationOrder: EliminationEvent[]; currentPlayerIndex: number;
   placedCities: PlacedCity[]; usedCityNames: Set<string>; lines: LineSegment[];
   lastElimination: EliminationEvent | null;
