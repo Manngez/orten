@@ -1,0 +1,20 @@
+.online-primary{width:100%;margin-top:12px;padding:15px 18px;border:1px solid #2da99c;background:transparent;color:#1f756e;font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;display:flex;justify-content:space-between}
+.online-primary:hover{background:#dff1ed}
+.online-shell{min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 50% 20%,#174a48 0,transparent 38%),#061920}
+.online-card{width:min(480px,100%);background:#ecf8f5;color:#102b2c;padding:clamp(26px,5vw,48px);box-shadow:0 30px 90px #0009}
+.online-card .brand{margin-bottom:44px}.online-card h1{font:500 clamp(34px,7vw,52px)/1 Georgia;margin:10px 0 30px}
+.online-card>label{display:block;margin-top:14px;color:#47716e;font-size:9px;font-weight:900;letter-spacing:.13em}
+.online-card>label input{display:block;width:100%;margin-top:7px;border:1px solid #c8ddda;background:#fff;color:#153433;padding:14px;outline:none}
+.online-card>label input:focus{border-color:#2da99c;box-shadow:0 0 0 3px #2da99c22}
+.online-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:22px}
+.online-actions button{border:0;background:#163b3a;color:#fff;padding:15px 10px;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+.online-actions button:last-child{background:#e95152}
+.lobby-list{border-top:1px solid #cedfdb;margin:20px 0}
+.lobby-list>div{display:grid;grid-template-columns:18px 1fr auto;align-items:center;min-height:48px;border-bottom:1px solid #cedfdb}
+.lobby-list i{width:8px;height:8px;border-radius:50%;background:#a8b7b4}.lobby-list i.online{background:#2bbd83;box-shadow:0 0 0 4px #2bbd8320}
+.lobby-list span{font-size:9px;color:#68817f;text-transform:uppercase;letter-spacing:.08em}
+.mode-grid.compact{margin:18px 0 8px}.waiting-copy{padding:16px;background:#dfece9;color:#476967;font-size:13px;line-height:1.5}
+.connection-pill{font-size:8px;font-weight:900;letter-spacing:.1em;padding:7px 9px;border:1px solid #2c786f;color:#6de1d3}
+.connection-pill.error{border-color:#a64848;color:#ff7878}
+.connection-warning{padding:9px 11px;margin:0 0 16px;background:#5f2729;color:#ffc2c2;font-size:11px;line-height:1.4}
+@media(max-width:760px){.connection-pill{max-width:92px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.online-card{padding:26px 22px}.online-card .brand{margin-bottom:32px}}
