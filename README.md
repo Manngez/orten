@@ -8,8 +8,11 @@ Ett lokalt geografispel för 2–8 spelare. Nämn svenska orter i tur och ordnin
 
 - Landval mellan Sverige och Norge i både lokalt spel och onlinerum
 - 1 831 norska postorter och korrekt norsk kustlinje, helt offline i bygget
-- Hemligt Finland-läge: klicka tio gånger utanför kartan under en Sverige- eller Norge-match
-- Finlands gräns ritas i neonblått under tio sekunder och 2 270 finska postorter låses upp
+- Hemlig Norden-meny: klicka tio gånger utanför kartan och välj Finland, Norge eller Danmark
+- Länderna delar samma geografiska kartprojektion så att gränser, orter och linjer hamnar rätt
+- Upplåsta landsgränser ritas under tio sekunder med neonmarkör och nationalsång
+- 2 270 finska, 1 831 norska och 614 danska postorter finns offline
+- Kartan kan zoomas med nypgest eller mushjul, panoreras genom att dra och återställas med kartknappen
 - Online för 2–8 spelare med rumskod
 - Varje spelare skriver orten på sin egen mobil när det är deras tur
 - Gemensamt synkroniserad karta, poäng, turordning och Blitz-timer
@@ -39,4 +42,4 @@ npm run build
 
 Ladda upp innehållet i `dist` till GitHub Pages. Eftersom bygget skapar en fristående HTML-fil fungerar det även under ett projektnamn utan särskild `base`-inställning.
 
-Finlands entrémusik är den public domain-märkta inspelningen av *Maamme* med United States Navy Band från Wikimedia Commons.
+Entrémusiken är inspelningar av de finska, norska och danska nationalsångerna från Wikimedia Commons. Inspelningarnas respektive licensvillkor anges på deras filsidor.
