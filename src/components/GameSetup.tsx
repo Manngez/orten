@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { GameMode } from "../types/game";
 export const PLAYER_COLORS=["#fb7185","#38bdf8","#34d399","#fbbf24","#a78bfa","#f472b6","#22d3ee","#fb923c"];
-export default function GameSetup({onStart,onStats}:{onStart:(p:string[],m:GameMode)=>void;onStats:()=>void}){
+export default function GameSetup({onStart,onStats,onOnline}:{onStart:(p:string[],m:GameMode)=>void;onStats:()=>void;onOnline:()=>void}){
   const [count,setCount]=useState(2),[names,setNames]=useState(["",""]),[mode,setMode]=useState<GameMode>("classic"),[error,setError]=useState("");
   const changeCount=(n:number)=>{setCount(n);setNames(v=>Array.from({length:n},(_,i)=>v[i]||""))};
   const start=()=>{const p=names.map((n,i)=>n.trim()||`Spelare ${i+1}`);if(new Set(p.map(n=>n.toLowerCase())).size<p.length){setError("Alla spelare behöver unika namn.");return}onStart(p,mode)};
@@ -21,6 +21,7 @@ export default function GameSetup({onStart,onStats}:{onStart:(p:string[],m:GameM
       <div className="name-grid">{names.map((name,i)=><label key={i}><span style={{background:PLAYER_COLORS[i]}}>{i+1}</span><input value={name} onChange={e=>setNames(v=>v.map((x,j)=>j===i?e.target.value:x))} placeholder={`Spelare ${i+1}`} maxLength={18}/></label>)}</div>
       {error&&<p className="error">{error}</p>}
       <button className="primary" onClick={start}>Starta matchen <span>→</span></button>
+      <button className="online-primary" onClick={onOnline}>Spela online <span>↗</span></button>
       <button className="text-button" onClick={onStats}>Visa lokal statistik</button>
     </section>
   </main>

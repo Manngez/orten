@@ -6,6 +6,10 @@ Ett lokalt geografispel för 2–8 spelare. Nämn svenska orter i tur och ordnin
 
 ## Nytt i 2.0
 
+- Online för 2–8 spelare med rumskod
+- Varje spelare skriver orten på sin egen mobil när det är deras tur
+- Gemensamt synkroniserad karta, poäng, turordning och Blitz-timer
+- Anslutningsstatus och återanslutning med samma rumskod
 - Ny responsiv design för mobil och dator
 - Klassisk och Blitz (15 sekunder per tur)
 - Animerade linjer, markörer, korsningar och resultat

@@ -58,6 +58,10 @@ export function useGame(){
     } else setState(s=>({...s,eliminated,eliminationOrder,lastElimination:event,currentPlayerIndex:nextActive(eliminated,i)}));
   },[state]);
   const resetGame=useCallback(()=>{setHistory([]);setState(emptyState)},[]);
+  const setRemoteState=useCallback((next:GameState)=>{
+    setHistory([]);
+    setState({...next,usedCityNames:new Set(next.usedCityNames)});
+  },[]);
   const undoLastMove=useCallback(()=>{const prev=history.at(-1);if(prev){setState(prev);setHistory(h=>h.slice(0,-1))}},[history]);
-  return {state,currentPlayer:state.players[state.currentPlayerIndex],activeCount:state.eliminated.filter(v=>!v).length,availableCities:SWEDISH_CITIES.filter(c=>!state.usedCityNames.has(c.name.toLocaleLowerCase("sv"))),startGame,placeCity,eliminateOnTimeout,resetGame,undoLastMove,canUndo:history.length>0,clearLastElimination:()=>setState(s=>({...s,lastElimination:null}))};
+  return {state,currentPlayer:state.players[state.currentPlayerIndex],activeCount:state.eliminated.filter(v=>!v).length,availableCities:SWEDISH_CITIES.filter(c=>!state.usedCityNames.has(c.name.toLocaleLowerCase("sv"))),startGame,placeCity,eliminateOnTimeout,resetGame,setRemoteState,undoLastMove,canUndo:history.length>0,clearLastElimination:()=>setState(s=>({...s,lastElimination:null}))};
 }
