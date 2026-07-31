@@ -76,7 +76,7 @@ export default function App(){
   const [nordicMenu,setNordicMenu]=useState(false),[arrivalCountry,setArrivalCountry]=useState<Exclude<NordicCountry,"sweden">|null>(null);
   const peerRef=useRef<Peer|null>(null),hostRef=useRef<DataConnection|null>(null),guestsRef=useRef<DataConnection[]>([]);
   const idsRef=useRef(new Map<DataConnection,string>()),stateRef=useRef(state),lobbyRef=useRef(lobby),placeCityRef=useRef(game.placeCity),countryRef=useRef(onlineCountry);
-  const outsideMapTapsRef=useRef(0),previousUnlockedRef=useRef(state.unlockedCountries);
+  const currentPlayerTapsRef=useRef(0),previousUnlockedRef=useRef(state.unlockedCountries);
   stateRef.current=state;lobbyRef.current=lobby;placeCityRef.current=game.placeCity;countryRef.current=onlineCountry;
 
   const broadcast=useCallback((message:NetworkMessage)=>guestsRef.current.forEach(c=>c.open&&c.send(message)),[]);
@@ -147,7 +147,7 @@ export default function App(){
     }
     const result=game.placeCity(cityName);if(result.success&&sound)beep();return result;
   };
-  const tapOutsideMap=(event:{target:EventTarget})=>{if((event.target as HTMLElement).closest(".board")||role==="guest")return;outsideMapTapsRef.current++;if(outsideMapTapsRef.current<10)return;outsideMapTapsRef.current=0;setNordicMenu(true)};
+  const tapCurrentPlayer=()=>{if(role==="guest")return;currentPlayerTapsRef.current++;if(currentPlayerTapsRef.current<10)return;currentPlayerTapsRef.current=0;setNordicMenu(true)};
   const activateCountry=(country:Exclude<NordicCountry,"sweden">)=>{if(country===state.country||state.unlockedCountries.includes(country))return;const meta=COUNTRY_META[country];if(role==="offline")playRemotePreview(meta.anthem);else broadcast({type:"MUSIC",previewUrl:meta.anthem,title:`${meta.name} – nationalsång`});game.unlockCountry(country);setNordicMenu(false)};
 
   if(state.phase==="setup"){
@@ -160,14 +160,14 @@ export default function App(){
     <section className="play-layout">
       <aside className="status-panel">
         <div className="turn-label">Tur {state.placedCities.length+1} · {game.activeCount} kvar</div>
-        <div className="current-player"><span style={{background:PLAYER_COLORS[state.currentPlayerIndex]}}>{state.currentPlayerIndex+1}</span><div><small>{isMyTurn?"DIN TUR":"NU SPELAR"}</small><h2>{game.currentPlayer}</h2></div>{state.mode==="blitz"&&<div className={`timer ${left<=5?"danger":""}`}><b>{left}</b><small>SEK</small></div>}</div>
+        <div className="current-player" onClick={tapCurrentPlayer}><span style={{background:PLAYER_COLORS[state.currentPlayerIndex]}}>{state.currentPlayerIndex+1}</span><div><small>{isMyTurn?"DIN TUR":"NU SPELAR"}</small><h2>{game.currentPlayer}</h2></div>{state.mode==="blitz"&&<div className={`timer ${left<=5?"danger":""}`}><b>{left}</b><small>SEK</small></div>}</div>
         {state.mode==="blitz"&&<div className="timer-track"><i style={{width:`${left/15*100}%`}}/></div>}
         {!currentConnected&&<p className="connection-warning">Spelet väntar på att {game.currentPlayer} återansluter.</p>}
         <div className="scoreboard">{state.players.map((p,i)=><div key={p} className={`${i===state.currentPlayerIndex?"active":""} ${state.eliminated[i]?"out":""}`}><span style={{background:PLAYER_COLORS[i]}}>{i+1}</span><b>{p}</b><small>{counts[i]} orter</small><strong>{state.scores[i]||0} p</strong></div>)}</div>
         <div className="desktop-input"><CityInput country={state.country} unlockedCountries={state.unlockedCountries} usedCityNames={state.usedCityNames} onPlaceCity={submit} disabled={!isMyTurn||pending||!currentConnected}/></div>
         {role!=="guest"&&<button className="undo" disabled={!game.canUndo} onClick={game.undoLastMove}>↶ Ångra senaste drag</button>}
       </aside>
-      <section className="map-wrap" onClick={tapOutsideMap}><GameBoard state={state}/><div className="map-caption"><span><i/> Senaste ort</span><strong>{state.placedCities.at(-1)?.city.name||"Väntar på första orten"}</strong></div></section>
+      <section className="map-wrap"><GameBoard state={state}/><div className="map-caption"><span><i/> Senaste ort</span><strong>{state.placedCities.at(-1)?.city.name||"Väntar på första orten"}</strong></div></section>
       <div className="mobile-input"><CityInput country={state.country} unlockedCountries={state.unlockedCountries} usedCityNames={state.usedCityNames} onPlaceCity={submit} disabled={!isMyTurn||pending||!currentConnected}/></div>
     </section>
     {arrivalCountry&&<div className="country-arrival" style={{borderColor:COUNTRY_META[arrivalCountry].color,color:COUNTRY_META[arrivalCountry].color}}>{COUNTRY_META[arrivalCountry].flag} {COUNTRY_META[arrivalCountry].name.toLocaleUpperCase("sv")} HAR ANSLUTIT</div>}
