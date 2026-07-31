@@ -8,7 +8,7 @@ Ett lokalt geografispel för 2–8 spelare. Nämn svenska orter i tur och ordnin
 
 - Landval mellan Sverige och Norge i både lokalt spel och onlinerum
 - 1 831 norska postorter och korrekt norsk kustlinje, helt offline i bygget
-- Hemlig Norden-meny: klicka tio gånger utanför kartan och välj Finland, Norge eller Danmark
+- Hemlig Norden-meny: klicka tio gånger på området ”DIN TUR / NU SPELAR” och välj Finland, Norge eller Danmark
 - Länderna delar samma geografiska kartprojektion så att gränser, orter och linjer hamnar rätt
 - Upplåsta landsgränser ritas under tio sekunder med neonmarkör och nationalsång
 - 2 270 finska, 1 831 norska och 614 danska postorter finns offline
