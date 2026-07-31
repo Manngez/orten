@@ -1,12 +1,14 @@
 import { useCallback, useState } from "react";
 import type { Country, GameMode, GameState, LineSegment, PlacedCity } from "../types/game";
 import { createCityMap, getCities } from "../data/cities";
+import { FINNISH_CITIES } from "../data/finlandCities";
 import { project } from "../utils/projection";
 import { findCrossing } from "../utils/geometry";
 import { updateStatsAfterGame } from "../utils/storage";
 
 const cityMaps={sweden:createCityMap("sweden"),norway:createCityMap("norway")};
-const emptyState: GameState = { phase:"setup", mode:"classic", country:"sweden", players:[], eliminated:[], eliminationOrder:[], currentPlayerIndex:0, placedCities:[], usedCityNames:new Set(), lines:[], lastElimination:null, crossingLines:null, winner:null, scores:[] };
+const finnishMap=new Map(FINNISH_CITIES.map(city=>[city.name.toLocaleLowerCase("fi"),city]));
+const emptyState: GameState = { phase:"setup", mode:"classic", country:"sweden", finlandUnlocked:false, players:[], eliminated:[], eliminationOrder:[], currentPlayerIndex:0, placedCities:[], usedCityNames:new Set(), lines:[], lastElimination:null, crossingLines:null, winner:null, scores:[] };
 const nextActive = (out:boolean[], from:number) => {
   for(let n=1;n<=out.length;n++){ const i=(from+n)%out.length; if(!out[i]) return i; }
   return from;
@@ -21,11 +23,11 @@ export function useGame(){
   },[]);
   const placeCity=useCallback((raw:string)=>{
     if(state.phase!=="playing") return {success:false,message:"Spelet är inte aktivt."};
-    const key=raw.trim().toLocaleLowerCase(state.country==="norway"?"nb":"sv"); const city=cityMaps[state.country].get(key);
+    const key=raw.trim().toLocaleLowerCase(state.country==="norway"?"nb":"sv"),baseCity=cityMaps[state.country].get(key),finlandCity=state.finlandUnlocked?finnishMap.get(raw.trim().toLocaleLowerCase("fi")):undefined,city=baseCity??finlandCity;
     if(!city) return {success:false,message:`"${raw}" finns inte i ortslistan.`};
     if(state.usedCityNames.has(key)) return {success:false,message:`${city.name} har redan använts.`};
     setHistory(h=>[...h,state]);
-    const point=project(city.lat,city.lng,state.country), playerIndex=state.currentPlayerIndex;
+    const point=project(city.lat,city.lng,state.country,!baseCity&&Boolean(finlandCity)), playerIndex=state.currentPlayerIndex;
     const previous=state.placedCities.at(-1);
     const points=previous ? Math.max(10,Math.round(distance(previous.point,point)*2)) : 50;
     const placed:PlacedCity={city,point,playerIndex,turnNumber:state.placedCities.length+1,points};
@@ -63,5 +65,6 @@ export function useGame(){
     setState({...next,usedCityNames:new Set(next.usedCityNames)});
   },[]);
   const undoLastMove=useCallback(()=>{const prev=history.at(-1);if(prev){setState(prev);setHistory(h=>h.slice(0,-1))}},[history]);
-  return {state,currentPlayer:state.players[state.currentPlayerIndex],activeCount:state.eliminated.filter(v=>!v).length,availableCities:getCities(state.country).filter(c=>!state.usedCityNames.has(c.name.toLocaleLowerCase(state.country==="norway"?"nb":"sv"))),startGame,placeCity,eliminateOnTimeout,resetGame,setRemoteState,undoLastMove,canUndo:history.length>0,clearLastElimination:()=>setState(s=>({...s,lastElimination:null}))};
+  const unlockFinland=useCallback(()=>setState(current=>current.phase==="playing"&&!current.finlandUnlocked?{...current,finlandUnlocked:true}:current),[]);
+  return {state,currentPlayer:state.players[state.currentPlayerIndex],activeCount:state.eliminated.filter(v=>!v).length,availableCities:getCities(state.country,state.finlandUnlocked).filter(c=>!state.usedCityNames.has(c.name.toLocaleLowerCase(state.country==="norway"?"nb":"sv"))),startGame,placeCity,eliminateOnTimeout,resetGame,setRemoteState,unlockFinland,undoLastMove,canUndo:history.length>0,clearLastElimination:()=>setState(s=>({...s,lastElimination:null}))};
 }

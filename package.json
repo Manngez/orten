@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "update:cities": "node scripts/fetch_cities.js",
-    "update:norway": "node scripts/fetch_norway.js"
+    "update:norway": "node scripts/fetch_norway.js",
+    "update:finland": "node scripts/fetch_finland.js"
   },
   "dependencies": {
     "clsx": "2.1.1",
