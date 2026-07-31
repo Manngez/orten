@@ -6,6 +6,8 @@ Ett lokalt geografispel för 2–8 spelare. Nämn svenska orter i tur och ordnin
 
 ## Nytt i 2.0
 
+- Landval mellan Sverige och Norge i både lokalt spel och onlinerum
+- 1 831 norska postorter och korrekt norsk kustlinje, helt offline i bygget
 - Online för 2–8 spelare med rumskod
 - Varje spelare skriver orten på sin egen mobil när det är deras tur
 - Gemensamt synkroniserad karta, poäng, turordning och Blitz-timer

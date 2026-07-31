@@ -5,7 +5,7 @@ import GameSetup,{PLAYER_COLORS} from "./components/GameSetup";
 import GameBoard from "./components/GameBoard";
 import CityInput from "./components/CityInput";
 import StatsPanel from "./components/StatsPanel";
-import type { GameMode,GameState } from "./types/game";
+import type { Country,GameMode,GameState } from "./types/game";
 
 type OnlineRole="offline"|"host"|"guest";
 type OnlineStatus="idle"|"connecting"|"connected"|"error";
@@ -15,7 +15,7 @@ type NetworkMessage=
   |{type:"JOIN";id:string;name:string}
   |{type:"READY";playerId:string}
   |{type:"IDENTITY";id:string}
-  |{type:"LOBBY";players:LobbyPlayer[]}
+  |{type:"LOBBY";players:LobbyPlayer[];country:Country}
   |{type:"STATE";state:WireGameState}
   |{type:"MOVE";cityName:string;playerId:string}
   |{type:"TIMER";seconds:number}
@@ -65,23 +65,24 @@ export default function App(){
   const [showOnline,setShowOnline]=useState(false),[role,setRole]=useState<OnlineRole>("offline"),[status,setStatus]=useState<OnlineStatus>("idle");
   const [name,setName]=useState(""),[room,setRoom]=useState(""),[error,setError]=useState(""),[playerId,setPlayerId]=useState("");
   const [lobby,setLobby]=useState<LobbyPlayer[]>([]),[onlineMode,setOnlineMode]=useState<GameMode>("classic"),[pending,setPending]=useState(false);
+  const [onlineCountry,setOnlineCountry]=useState<Country>("sweden");
   const [logoTaps,setLogoTaps]=useState(0),[devMenu,setDevMenu]=useState(false),[devMusicStatus,setDevMusicStatus]=useState(""),[devMusicLoading,setDevMusicLoading]=useState(false);
   const [devSearch,setDevSearch]=useState(""),[devResults,setDevResults]=useState<AppleTrack[]>([]);
   const peerRef=useRef<Peer|null>(null),hostRef=useRef<DataConnection|null>(null),guestsRef=useRef<DataConnection[]>([]);
-  const idsRef=useRef(new Map<DataConnection,string>()),stateRef=useRef(state),lobbyRef=useRef(lobby),placeCityRef=useRef(game.placeCity);
-  stateRef.current=state;lobbyRef.current=lobby;placeCityRef.current=game.placeCity;
+  const idsRef=useRef(new Map<DataConnection,string>()),stateRef=useRef(state),lobbyRef=useRef(lobby),placeCityRef=useRef(game.placeCity),countryRef=useRef(onlineCountry);
+  stateRef.current=state;lobbyRef.current=lobby;placeCityRef.current=game.placeCity;countryRef.current=onlineCountry;
 
   const broadcast=useCallback((message:NetworkMessage)=>guestsRef.current.forEach(c=>c.open&&c.send(message)),[]);
   const startRoomMusic=async(song:DevSong)=>{if(role!=="host"||devMusicLoading)return;setDevMusicLoading(true);setDevMusicStatus("Hämtar förhandslyssning…");try{const previewUrl=await resolveApplePreview(song);if(!previewUrl){setDevMusicStatus("Ingen förhandslyssning hittades.");return}broadcast({type:"MUSIC",previewUrl,title:`${song.artist} – ${song.title}`});setDevMusicStatus(`Spelar på deltagarnas enheter: ${song.title}`)}catch{setDevMusicStatus("Kunde inte hämta låten. Försök igen.")}finally{setDevMusicLoading(false)}};
   const runDevSearch=async()=>{const query=devSearch.trim();if(!query||devMusicLoading)return;setDevMusicLoading(true);setDevMusicStatus("Söker i Apple Music…");setDevResults([]);try{const results=await searchApple(query),unique=results.filter((track,index,list)=>list.findIndex(other=>(other.trackId&&other.trackId===track.trackId)||(`${other.artistName}-${other.trackName}`===`${track.artistName}-${track.trackName}`))===index).slice(0,5);setDevResults(unique);setDevMusicStatus(unique.length?`${unique.length} låtar hittades.`:"Inga låtar med förhandslyssning hittades.")}catch{setDevMusicStatus("Sökningen misslyckades. Försök igen.")}finally{setDevMusicLoading(false)}};
   const playSearchResult=(track:AppleTrack)=>{if(role!=="host"||!track.previewUrl)return;broadcast({type:"MUSIC",previewUrl:track.previewUrl,title:`${track.artistName} – ${track.trackName}`});setDevMusicStatus(`Spelar på deltagarnas enheter: ${track.trackName}`)};
-  const setAndBroadcastLobby=useCallback((next:LobbyPlayer[])=>{lobbyRef.current=next;setLobby(next);broadcast({type:"LOBBY",players:next})},[broadcast]);
+  const setAndBroadcastLobby=useCallback((next:LobbyPlayer[])=>{lobbyRef.current=next;setLobby(next);broadcast({type:"LOBBY",players:next,country:countryRef.current})},[broadcast]);
   const stopNetwork=useCallback(()=>{hostRef.current?.close();hostRef.current=null;guestsRef.current.forEach(c=>c.close());guestsRef.current=[];idsRef.current.clear();peerRef.current?.destroy();peerRef.current=null},[]);
   const leaveOnline=useCallback(()=>{if(role==="guest"&&hostRef.current?.open)hostRef.current.send({type:"LEAVE",playerId} satisfies NetworkMessage);stopNetwork();setRole("offline");setStatus("idle");setLobby([]);setShowOnline(false);setPending(false);setError("");game.resetGame()},[game,playerId,role,stopNetwork]);
 
   const attachGuest=useCallback((connection:DataConnection)=>{
     guestsRef.current=[...guestsRef.current,connection];
-    connection.on("open",()=>{connection.send({type:"LOBBY",players:lobbyRef.current} satisfies NetworkMessage);connection.send({type:"STATE",state:toWireState(stateRef.current)} satisfies NetworkMessage)});
+    connection.on("open",()=>{connection.send({type:"LOBBY",players:lobbyRef.current,country:countryRef.current} satisfies NetworkMessage);connection.send({type:"STATE",state:toWireState(stateRef.current)} satisfies NetworkMessage)});
     connection.on("data",raw=>{
       const message=raw as NetworkMessage;
       if(message.type==="JOIN"&&typeof message.id==="string"&&typeof message.name==="string"){
@@ -117,7 +118,7 @@ export default function App(){
     stopNetwork();game.resetGame();setRole("guest");setStatus("connecting");setError("");
     const id=localStorage.getItem(`orten-player-${code}`)||makeId();localStorage.setItem(`orten-player-${code}`,id);setPlayerId(id);
     const peer=new Peer();peerRef.current=peer;
-    peer.on("open",()=>{const connection=peer.connect(roomPeerId(code),{reliable:true});hostRef.current=connection;connection.on("open",()=>{setStatus("connected");connection.send({type:"JOIN",id,name:name.trim()} satisfies NetworkMessage)});connection.on("data",raw=>{const message=raw as NetworkMessage;if(message.type==="LOBBY")setLobby(message.players);if(message.type==="IDENTITY")setPlayerId(message.id);if(message.type==="STATE"){game.setRemoteState({...message.state,usedCityNames:new Set(message.state.usedCityNames)});setPending(false)}if(message.type==="TIMER")setLeft(message.seconds);if(message.type==="MUSIC"&&typeof message.previewUrl==="string"&&localStorage.getItem("blindkarta_sound")!=="off")playRemotePreview(message.previewUrl)});connection.on("close",()=>{setStatus("error");setError("Anslutningen bröts. Gå tillbaka och anslut igen.")});connection.on("error",()=>setStatus("error"))});
+    peer.on("open",()=>{const connection=peer.connect(roomPeerId(code),{reliable:true});hostRef.current=connection;connection.on("open",()=>{setStatus("connected");connection.send({type:"JOIN",id,name:name.trim()} satisfies NetworkMessage)});connection.on("data",raw=>{const message=raw as NetworkMessage;if(message.type==="LOBBY"){setLobby(message.players);setOnlineCountry(message.country)}if(message.type==="IDENTITY")setPlayerId(message.id);if(message.type==="STATE"){game.setRemoteState({...message.state,usedCityNames:new Set(message.state.usedCityNames)});setPending(false)}if(message.type==="TIMER")setLeft(message.seconds);if(message.type==="MUSIC"&&typeof message.previewUrl==="string"&&localStorage.getItem("blindkarta_sound")!=="off")playRemotePreview(message.previewUrl)});connection.on("close",()=>{setStatus("error");setError("Anslutningen bröts. Gå tillbaka och anslut igen.")});connection.on("error",()=>setStatus("error"))});
     peer.on("error",()=>{setStatus("error");setError("Kunde inte ansluta till rummet.")});
   };
 
@@ -140,7 +141,7 @@ export default function App(){
   };
 
   if(state.phase==="setup"){
-    if(showOnline)return <OnlineLobby role={role} status={status} name={name} room={room} error={error} lobby={lobby} mode={onlineMode} playerId={playerId} onName={setName} onRoom={setRoom} onMode={setOnlineMode} onCreate={createRoom} onJoin={joinRoom} onReady={()=>{if(role!=="guest"||!hostRef.current?.open)return;void primeRemoteAudioPlayback().then(()=>hostRef.current?.send({type:"READY",playerId} satisfies NetworkMessage))}} onBack={leaveOnline} onStart={()=>role==="host"&&lobby.length>=2&&lobby.every(p=>p.connected&&p.ready)&&game.startGame(lobby.map(p=>p.name),onlineMode)}/>;
+    if(showOnline)return <OnlineLobby role={role} status={status} name={name} room={room} error={error} lobby={lobby} mode={onlineMode} country={onlineCountry} playerId={playerId} onName={setName} onRoom={setRoom} onMode={setOnlineMode} onCountry={country=>{setOnlineCountry(country);if(role==="host")broadcast({type:"LOBBY",players:lobbyRef.current,country})}} onCreate={createRoom} onJoin={joinRoom} onReady={()=>{if(role!=="guest"||!hostRef.current?.open)return;void primeRemoteAudioPlayback().then(()=>hostRef.current?.send({type:"READY",playerId} satisfies NetworkMessage))}} onBack={leaveOnline} onStart={()=>role==="host"&&lobby.length>=2&&lobby.every(p=>p.connected&&p.ready)&&game.startGame(lobby.map(p=>p.name),onlineMode,onlineCountry)}/>;
     return <><GameSetup onStart={game.startGame} onStats={()=>setStats(true)} onOnline={()=>setShowOnline(true)}/>{stats&&<StatsPanel onClose={()=>setStats(false)}/>}</>;
   }
 
@@ -153,11 +154,11 @@ export default function App(){
         {state.mode==="blitz"&&<div className="timer-track"><i style={{width:`${left/15*100}%`}}/></div>}
         {!currentConnected&&<p className="connection-warning">Spelet väntar på att {game.currentPlayer} återansluter.</p>}
         <div className="scoreboard">{state.players.map((p,i)=><div key={p} className={`${i===state.currentPlayerIndex?"active":""} ${state.eliminated[i]?"out":""}`}><span style={{background:PLAYER_COLORS[i]}}>{i+1}</span><b>{p}</b><small>{counts[i]} orter</small><strong>{state.scores[i]||0} p</strong></div>)}</div>
-        <div className="desktop-input"><CityInput usedCityNames={state.usedCityNames} onPlaceCity={submit} disabled={!isMyTurn||pending||!currentConnected}/></div>
+        <div className="desktop-input"><CityInput country={state.country} usedCityNames={state.usedCityNames} onPlaceCity={submit} disabled={!isMyTurn||pending||!currentConnected}/></div>
         {role!=="guest"&&<button className="undo" disabled={!game.canUndo} onClick={game.undoLastMove}>↶ Ångra senaste drag</button>}
       </aside>
       <section className="map-wrap"><GameBoard state={state}/><div className="map-caption"><span><i/> Senaste ort</span><strong>{state.placedCities.at(-1)?.city.name||"Väntar på första orten"}</strong></div></section>
-      <div className="mobile-input"><CityInput usedCityNames={state.usedCityNames} onPlaceCity={submit} disabled={!isMyTurn||pending||!currentConnected}/></div>
+      <div className="mobile-input"><CityInput country={state.country} usedCityNames={state.usedCityNames} onPlaceCity={submit} disabled={!isMyTurn||pending||!currentConnected}/></div>
     </section>
     {state.lastElimination&&state.phase==="playing"&&<button className="elimination" onClick={game.clearLastElimination}><b>LINJEKORSNING</b><span>{state.lastElimination.playerName} är utslagen</span><small>Tryck för att stänga</small></button>}
     {state.phase==="gameover"&&<div className="modal-backdrop"><section className="result-card"><div className="trophy">★</div><p>MATCHEN ÄR AVGJORD</p><h1>{state.winner}</h1><h2>vinner ORTEN!</h2><div className="result-scores">{state.players.slice().sort((a,b)=>state.scores[state.players.indexOf(b)]-state.scores[state.players.indexOf(a)]).map(p=>{const i=state.players.indexOf(p);return <div key={p}><span style={{background:PLAYER_COLORS[i]}}>{i+1}</span><b>{p}</b><strong>{state.scores[i]} p</strong></div>})}</div><button className="primary" onClick={role==="offline"?game.resetGame:leaveOnline}>Ny match <span>→</span></button></section></div>}
@@ -166,7 +167,7 @@ export default function App(){
   </main>
 }
 
-function OnlineLobby({role,status,name,room,error,lobby,mode,playerId,onName,onRoom,onMode,onCreate,onJoin,onReady,onBack,onStart}:{role:OnlineRole;status:OnlineStatus;name:string;room:string;error:string;lobby:LobbyPlayer[];mode:GameMode;playerId:string;onName:(v:string)=>void;onRoom:(v:string)=>void;onMode:(v:GameMode)=>void;onCreate:()=>void;onJoin:()=>void;onReady:()=>void;onBack:()=>void;onStart:()=>void}){
+function OnlineLobby({role,status,name,room,error,lobby,mode,country,playerId,onName,onRoom,onMode,onCountry,onCreate,onJoin,onReady,onBack,onStart}:{role:OnlineRole;status:OnlineStatus;name:string;room:string;error:string;lobby:LobbyPlayer[];mode:GameMode;country:Country;playerId:string;onName:(v:string)=>void;onRoom:(v:string)=>void;onMode:(v:GameMode)=>void;onCountry:(v:Country)=>void;onCreate:()=>void;onJoin:()=>void;onReady:()=>void;onBack:()=>void;onStart:()=>void}){
   const ready=lobby.length>=2&&lobby.every(p=>p.connected&&p.ready),me=lobby.find(p=>p.id===playerId);
-  return <main className="online-shell"><section className="online-card"><div className="brand"><span className="brand-mark">O</span><span>ORTEN <b>ONLINE</b></span></div>{role==="offline"?<><p className="eyebrow">Spela på flera enheter</p><h1>Skapa eller anslut</h1><label>DITT NAMN<input value={name} onChange={e=>onName(e.target.value.slice(0,18))} placeholder="Exempel: Anna"/></label><label>RUMSKOD<input value={room} onChange={e=>onRoom(e.target.value.slice(0,24))} placeholder="Exempel: fredag"/></label><div className="online-actions"><button onClick={onCreate}>Skapa rum</button><button onClick={onJoin}>Gå med</button></div></>:<><p className="eyebrow">{status==="connected"?"Ansluten":"Ansluter…"}</p><h1>Rum {room.toUpperCase()}</h1><div className="lobby-list">{lobby.map(p=><div key={p.id}><i className={p.connected?"online":""}/><b>{p.name}</b><span>{p.id==="host"?"Spelledare":!p.connected?"Frånkopplad":p.ready?"Redo":"Aktivera ljud"}</span></div>)}</div>{role==="host"&&<><div className="mode-grid compact"><button className={mode==="classic"?"selected":""} onClick={()=>onMode("classic")}><strong>Klassisk</strong></button><button className={mode==="blitz"?"selected blitz":""} onClick={()=>onMode("blitz")}><strong>Blitz · 15 s</strong></button></div><button className="primary" disabled={!ready} onClick={onStart}>{ready?"Starta matchen":"Väntar på att alla aktiverar ljud"}<span>→</span></button></>}{role==="guest"&&(me?.ready?<p className="waiting-copy ready">✓ Spelljud aktiverat. Väntar på spelledaren.</p>:<button className="primary audio-ready" onClick={onReady}>Aktivera spelljud och bli redo <span>♪</span></button>)}</>}{error&&<p className="error">{error}</p>}<button className="text-button" onClick={onBack}>← Tillbaka</button></section></main>
+  return <main className="online-shell"><section className="online-card"><div className="brand"><span className="brand-mark">O</span><span>ORTEN <b>ONLINE</b></span></div>{role==="offline"?<><p className="eyebrow">Spela på flera enheter</p><h1>Skapa eller anslut</h1><label>DITT NAMN<input value={name} onChange={e=>onName(e.target.value.slice(0,18))} placeholder="Exempel: Anna"/></label><label>RUMSKOD<input value={room} onChange={e=>onRoom(e.target.value.slice(0,24))} placeholder="Exempel: fredag"/></label><div className="online-actions"><button onClick={onCreate}>Skapa rum</button><button onClick={onJoin}>Gå med</button></div></>:<><p className="eyebrow">{status==="connected"?"Ansluten":"Ansluter…"}</p><h1>Rum {room.toUpperCase()}</h1>{role==="host"?<div className="country-grid online-country"><button className={country==="sweden"?"selected":""} onClick={()=>onCountry("sweden")}>🇸🇪 Sverige</button><button className={country==="norway"?"selected":""} onClick={()=>onCountry("norway")}>🇳🇴 Norge</button></div>:<p className="country-label">{country==="norway"?"🇳🇴 Norge":"🇸🇪 Sverige"}</p>}<div className="lobby-list">{lobby.map(p=><div key={p.id}><i className={p.connected?"online":""}/><b>{p.name}</b><span>{p.id==="host"?"Spelledare":!p.connected?"Frånkopplad":p.ready?"Redo":"Aktivera ljud"}</span></div>)}</div>{role==="host"&&<><div className="mode-grid compact"><button className={mode==="classic"?"selected":""} onClick={()=>onMode("classic")}><strong>Klassisk</strong></button><button className={mode==="blitz"?"selected blitz":""} onClick={()=>onMode("blitz")}><strong>Blitz · 15 s</strong></button></div><button className="primary" disabled={!ready} onClick={onStart}>{ready?"Starta matchen":"Väntar på att alla aktiverar ljud"}<span>→</span></button></>}{role==="guest"&&(me?.ready?<p className="waiting-copy ready">✓ Spelljud aktiverat. Väntar på spelledaren.</p>:<button className="primary audio-ready" onClick={onReady}>Aktivera spelljud och bli redo <span>♪</span></button>)}</>}{error&&<p className="error">{error}</p>}<button className="text-button" onClick={onBack}>← Tillbaka</button></section></main>
 }
