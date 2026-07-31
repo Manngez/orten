@@ -1232,7 +1232,7 @@ export const SWEDISH_CITIES: City[] = [
   { name: "Lugnvik", lat: 62.9296, lng: 17.9024 },
   { name: "Lugnås", lat: 58.6508, lng: 13.6995 },
   { name: "Luleå", lat: 65.5879, lng: 22.1906 },
-  { name: "Lund", lat: 60.6658, lng: 17.0010 },
+  { name: "Lund", lat: 55.7047, lng: 13.1910 },
   { name: "Lundby och Malm", lat: 58.5544, lng: 16.2981 },
   { name: "Lundby och Rogstorp", lat: 57.9253, lng: 11.9203 },
   { name: "Lunde", lat: 62.8779, lng: 17.8612 },
