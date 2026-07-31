@@ -9,10 +9,11 @@ import type { GameMode,GameState } from "./types/game";
 
 type OnlineRole="offline"|"host"|"guest";
 type OnlineStatus="idle"|"connecting"|"connected"|"error";
-type LobbyPlayer={id:string;name:string;connected:boolean};
+type LobbyPlayer={id:string;name:string;connected:boolean;ready:boolean};
 type WireGameState=Omit<GameState,"usedCityNames">&{usedCityNames:string[]};
 type NetworkMessage=
   |{type:"JOIN";id:string;name:string}
+  |{type:"READY";playerId:string}
   |{type:"IDENTITY";id:string}
   |{type:"LOBBY";players:LobbyPlayer[]}
   |{type:"STATE";state:WireGameState}
@@ -79,7 +80,7 @@ export default function App(){
       if(message.type==="JOIN"&&typeof message.id==="string"&&typeof message.name==="string"){
         idsRef.current.set(connection,message.id);
         const existing=lobbyRef.current.find(p=>p.id===message.id);
-        const next=existing?lobbyRef.current.map(p=>p.id===message.id?{...p,name:message.name,connected:true}:p):[...lobbyRef.current,{id:message.id,name:message.name,connected:true}];
+        const next=existing?lobbyRef.current.map(p=>p.id===message.id?{...p,name:message.name,connected:true}:p):[...lobbyRef.current,{id:message.id,name:message.name,connected:true,ready:false}];
         setAndBroadcastLobby(next);connection.send({type:"IDENTITY",id:message.id} satisfies NetworkMessage);connection.send({type:"STATE",state:toWireState(stateRef.current)} satisfies NetworkMessage);return;
       }
       const authenticated=idsRef.current.get(connection);
@@ -89,8 +90,9 @@ export default function App(){
         if(current===authenticated)placeCityRef.current(message.cityName);
       }
       if(message.type==="LEAVE"&&message.playerId===authenticated)setAndBroadcastLobby(lobbyRef.current.map(p=>p.id===authenticated?{...p,connected:false}:p));
+      if(message.type==="READY"&&message.playerId===authenticated)setAndBroadcastLobby(lobbyRef.current.map(p=>p.id===authenticated?{...p,connected:true,ready:true}:p));
     });
-    const detach=()=>{const id=idsRef.current.get(connection);guestsRef.current=guestsRef.current.filter(c=>c!==connection);idsRef.current.delete(connection);if(id)setAndBroadcastLobby(lobbyRef.current.map(p=>p.id===id?{...p,connected:false}:p))};
+    const detach=()=>{const id=idsRef.current.get(connection);guestsRef.current=guestsRef.current.filter(c=>c!==connection);idsRef.current.delete(connection);if(id)setAndBroadcastLobby(lobbyRef.current.map(p=>p.id===id?{...p,connected:false,ready:false}:p))};
     connection.on("close",detach);connection.on("error",detach);
   },[setAndBroadcastLobby]);
 
@@ -98,7 +100,7 @@ export default function App(){
     void primeRemoteAudioPlayback();
     const code=normalizeCode(room);if(!name.trim()||!code){setError("Skriv namn och rumskod.");return}
     stopNetwork();game.resetGame();setRole("host");setPlayerId("host");setStatus("connecting");setError("");
-    const players=[{id:"host",name:name.trim(),connected:true}];setLobby(players);lobbyRef.current=players;
+    const players=[{id:"host",name:name.trim(),connected:true,ready:true}];setLobby(players);lobbyRef.current=players;
     const peer=new Peer(roomPeerId(code));peerRef.current=peer;
     peer.on("open",()=>setStatus("connected"));peer.on("connection",attachGuest);peer.on("error",e=>{setStatus("error");setError(e.type==="unavailable-id"?"Rumskoden används redan.":e.message)});
   };
@@ -131,7 +133,7 @@ export default function App(){
   };
 
   if(state.phase==="setup"){
-    if(showOnline)return <OnlineLobby role={role} status={status} name={name} room={room} error={error} lobby={lobby} mode={onlineMode} onName={setName} onRoom={setRoom} onMode={setOnlineMode} onCreate={createRoom} onJoin={joinRoom} onBack={leaveOnline} onStart={()=>role==="host"&&lobby.length>=2&&lobby.every(p=>p.connected)&&game.startGame(lobby.map(p=>p.name),onlineMode)}/>;
+    if(showOnline)return <OnlineLobby role={role} status={status} name={name} room={room} error={error} lobby={lobby} mode={onlineMode} playerId={playerId} onName={setName} onRoom={setRoom} onMode={setOnlineMode} onCreate={createRoom} onJoin={joinRoom} onReady={()=>{if(role!=="guest"||!hostRef.current?.open)return;void primeRemoteAudioPlayback().then(()=>hostRef.current?.send({type:"READY",playerId} satisfies NetworkMessage))}} onBack={leaveOnline} onStart={()=>role==="host"&&lobby.length>=2&&lobby.every(p=>p.connected&&p.ready)&&game.startGame(lobby.map(p=>p.name),onlineMode)}/>;
     return <><GameSetup onStart={game.startGame} onStats={()=>setStats(true)} onOnline={()=>setShowOnline(true)}/>{stats&&<StatsPanel onClose={()=>setStats(false)}/>}</>;
   }
 
@@ -157,7 +159,7 @@ export default function App(){
   </main>
 }
 
-function OnlineLobby({role,status,name,room,error,lobby,mode,onName,onRoom,onMode,onCreate,onJoin,onBack,onStart}:{role:OnlineRole;status:OnlineStatus;name:string;room:string;error:string;lobby:LobbyPlayer[];mode:GameMode;onName:(v:string)=>void;onRoom:(v:string)=>void;onMode:(v:GameMode)=>void;onCreate:()=>void;onJoin:()=>void;onBack:()=>void;onStart:()=>void}){
-  const ready=lobby.length>=2&&lobby.every(p=>p.connected);
-  return <main className="online-shell"><section className="online-card"><div className="brand"><span className="brand-mark">O</span><span>ORTEN <b>ONLINE</b></span></div>{role==="offline"?<><p className="eyebrow">Spela på flera enheter</p><h1>Skapa eller anslut</h1><label>DITT NAMN<input value={name} onChange={e=>onName(e.target.value.slice(0,18))} placeholder="Exempel: Anna"/></label><label>RUMSKOD<input value={room} onChange={e=>onRoom(e.target.value.slice(0,24))} placeholder="Exempel: fredag"/></label><div className="online-actions"><button onClick={onCreate}>Skapa rum</button><button onClick={onJoin}>Gå med</button></div></>:<><p className="eyebrow">{status==="connected"?"Ansluten":"Ansluter…"}</p><h1>Rum {room.toUpperCase()}</h1><div className="lobby-list">{lobby.map(p=><div key={p.id}><i className={p.connected?"online":""}/><b>{p.name}</b><span>{p.id==="host"?"Spelledare":p.connected?"Redo":"Frånkopplad"}</span></div>)}</div>{role==="host"&&<><div className="mode-grid compact"><button className={mode==="classic"?"selected":""} onClick={()=>onMode("classic")}><strong>Klassisk</strong></button><button className={mode==="blitz"?"selected blitz":""} onClick={()=>onMode("blitz")}><strong>Blitz · 15 s</strong></button></div><button className="primary" disabled={!ready} onClick={onStart}>{ready?"Starta matchen":"Väntar på spelare"}<span>→</span></button></>}{role==="guest"&&<p className="waiting-copy">Spelledaren startar när alla är anslutna.</p>}</>}{error&&<p className="error">{error}</p>}<button className="text-button" onClick={onBack}>← Tillbaka</button></section></main>
+function OnlineLobby({role,status,name,room,error,lobby,mode,playerId,onName,onRoom,onMode,onCreate,onJoin,onReady,onBack,onStart}:{role:OnlineRole;status:OnlineStatus;name:string;room:string;error:string;lobby:LobbyPlayer[];mode:GameMode;playerId:string;onName:(v:string)=>void;onRoom:(v:string)=>void;onMode:(v:GameMode)=>void;onCreate:()=>void;onJoin:()=>void;onReady:()=>void;onBack:()=>void;onStart:()=>void}){
+  const ready=lobby.length>=2&&lobby.every(p=>p.connected&&p.ready),me=lobby.find(p=>p.id===playerId);
+  return <main className="online-shell"><section className="online-card"><div className="brand"><span className="brand-mark">O</span><span>ORTEN <b>ONLINE</b></span></div>{role==="offline"?<><p className="eyebrow">Spela på flera enheter</p><h1>Skapa eller anslut</h1><label>DITT NAMN<input value={name} onChange={e=>onName(e.target.value.slice(0,18))} placeholder="Exempel: Anna"/></label><label>RUMSKOD<input value={room} onChange={e=>onRoom(e.target.value.slice(0,24))} placeholder="Exempel: fredag"/></label><div className="online-actions"><button onClick={onCreate}>Skapa rum</button><button onClick={onJoin}>Gå med</button></div></>:<><p className="eyebrow">{status==="connected"?"Ansluten":"Ansluter…"}</p><h1>Rum {room.toUpperCase()}</h1><div className="lobby-list">{lobby.map(p=><div key={p.id}><i className={p.connected?"online":""}/><b>{p.name}</b><span>{p.id==="host"?"Spelledare":!p.connected?"Frånkopplad":p.ready?"Redo":"Aktivera ljud"}</span></div>)}</div>{role==="host"&&<><div className="mode-grid compact"><button className={mode==="classic"?"selected":""} onClick={()=>onMode("classic")}><strong>Klassisk</strong></button><button className={mode==="blitz"?"selected blitz":""} onClick={()=>onMode("blitz")}><strong>Blitz · 15 s</strong></button></div><button className="primary" disabled={!ready} onClick={onStart}>{ready?"Starta matchen":"Väntar på att alla aktiverar ljud"}<span>→</span></button></>}{role==="guest"&&(me?.ready?<p className="waiting-copy ready">✓ Spelljud aktiverat. Väntar på spelledaren.</p>:<button className="primary audio-ready" onClick={onReady}>Aktivera spelljud och bli redo <span>♪</span></button>)}</>}{error&&<p className="error">{error}</p>}<button className="text-button" onClick={onBack}>← Tillbaka</button></section></main>
 }
