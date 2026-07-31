@@ -13,6 +13,7 @@ Ett lokalt geografispel för 2–8 spelare. Nämn svenska orter i tur och ordnin
 - Upplåsta landsgränser ritas under tio sekunder med neonmarkör och nationalsång
 - 2 270 finska, 1 831 norska och 614 danska postorter finns offline
 - Kartan kan zoomas med nypgest eller mushjul, panoreras genom att dra och återställas med kartknappen
+- En löpande, färgkodad lista visar alla valda orter och vem som valde dem
 - Online för 2–8 spelare med rumskod
 - Varje spelare skriver orten på sin egen mobil när det är deras tur
 - Gemensamt synkroniserad karta, poäng, turordning och Blitz-timer
