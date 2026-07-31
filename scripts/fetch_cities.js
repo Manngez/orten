@@ -71,6 +71,13 @@ for (const [key, group] of postalGroups) {
   }
 }
 
+// Resolve ambiguous duplicate place names to the nationally recognized city.
+// The upstream locality source currently lets a smaller place overwrite Lund in Skåne.
+const coordinateOverrides = [
+  { name: "Lund", lat: 55.7047, lng: 13.1910 },
+];
+for (const city of coordinateOverrides) cities.set(keyOf(city.name), city);
+
 const sorted = [...cities.values()].sort((a, b) => a.name.localeCompare(b.name, "sv-SE"));
 const lines = sorted.map(city =>
   `  { name: ${JSON.stringify(city.name)}, lat: ${city.lat.toFixed(4)}, lng: ${city.lng.toFixed(4)} },`
