@@ -5,7 +5,7 @@ import GameSetup,{PLAYER_COLORS} from "./components/GameSetup";
 import GameBoard from "./components/GameBoard";
 import CityInput from "./components/CityInput";
 import StatsPanel from "./components/StatsPanel";
-import type { Country,GameMode,GameState } from "./types/game";
+import type { Country,GameMode,GameState,NordicCountry } from "./types/game";
 
 type OnlineRole="offline"|"host"|"guest";
 type OnlineStatus="idle"|"connecting"|"connected"|"error";
@@ -33,7 +33,11 @@ function beep(){
 
 type DevSong={title:string;artist:string};
 const DEV_SONGS:DevSong[]=[{title:"Dancing Queen",artist:"ABBA"},{title:"Wake Me Up",artist:"Avicii"},{title:"The Look",artist:"Roxette"},{title:"The Final Countdown",artist:"Europe"},{title:"Dancing on My Own",artist:"Robyn"}];
-const FINLAND_ANTHEM_URL="https://upload.wikimedia.org/wikipedia/commons/6/61/United_States_Navy_Band_-_Maamme.ogg";
+const COUNTRY_META:Record<Exclude<NordicCountry,"sweden">,{flag:string;name:string;anthem:string;color:string}>={
+  finland:{flag:"🇫🇮",name:"Finland",anthem:"https://upload.wikimedia.org/wikipedia/commons/6/61/United_States_Navy_Band_-_Maamme.ogg",color:"#27d9ff"},
+  norway:{flag:"🇳🇴",name:"Norge",anthem:"https://commons.wikimedia.org/wiki/Special:Redirect/file/Norway%20(National%20Anthem).ogg",color:"#ff4268"},
+  denmark:{flag:"🇩🇰",name:"Danmark",anthem:"https://commons.wikimedia.org/wiki/Special:Redirect/file/United%20States%20Navy%20Band%20-%20Der%20er%20et%20yndigt%20land.ogg",color:"#fff"}
+};
 let remoteAudioElement:HTMLAudioElement|null=null;
 async function primeRemoteAudioPlayback(){
   remoteAudioElement??=new Audio();
@@ -69,10 +73,10 @@ export default function App(){
   const [onlineCountry,setOnlineCountry]=useState<Country>("sweden");
   const [logoTaps,setLogoTaps]=useState(0),[devMenu,setDevMenu]=useState(false),[devMusicStatus,setDevMusicStatus]=useState(""),[devMusicLoading,setDevMusicLoading]=useState(false);
   const [devSearch,setDevSearch]=useState(""),[devResults,setDevResults]=useState<AppleTrack[]>([]);
-  const [showFinlandArrival,setShowFinlandArrival]=useState(false);
+  const [nordicMenu,setNordicMenu]=useState(false),[arrivalCountry,setArrivalCountry]=useState<Exclude<NordicCountry,"sweden">|null>(null);
   const peerRef=useRef<Peer|null>(null),hostRef=useRef<DataConnection|null>(null),guestsRef=useRef<DataConnection[]>([]);
   const idsRef=useRef(new Map<DataConnection,string>()),stateRef=useRef(state),lobbyRef=useRef(lobby),placeCityRef=useRef(game.placeCity),countryRef=useRef(onlineCountry);
-  const outsideMapTapsRef=useRef(0),previousFinlandRef=useRef(state.finlandUnlocked);
+  const outsideMapTapsRef=useRef(0),previousUnlockedRef=useRef(state.unlockedCountries);
   stateRef.current=state;lobbyRef.current=lobby;placeCityRef.current=game.placeCity;countryRef.current=onlineCountry;
 
   const broadcast=useCallback((message:NetworkMessage)=>guestsRef.current.forEach(c=>c.open&&c.send(message)),[]);
@@ -128,7 +132,7 @@ export default function App(){
   useEffect(()=>{localStorage.setItem("blindkarta_sound",sound?"on":"off")},[sound]);
   useEffect(()=>{setLeft(15)},[state.currentPlayerIndex,state.phase]);
   useEffect(()=>{if(role!=="host"||status!=="connected")return;broadcast({type:"STATE",state:toWireState(state)})},[broadcast,role,state,status]);
-  useEffect(()=>{if(state.finlandUnlocked&&!previousFinlandRef.current){setShowFinlandArrival(true);const timer=window.setTimeout(()=>setShowFinlandArrival(false),10000);previousFinlandRef.current=true;return()=>window.clearTimeout(timer)}previousFinlandRef.current=state.finlandUnlocked},[state.finlandUnlocked]);
+  useEffect(()=>{const added=state.unlockedCountries.find(country=>!previousUnlockedRef.current.includes(country));previousUnlockedRef.current=state.unlockedCountries;if(added&&added!=="sweden"){setArrivalCountry(added);const timer=window.setTimeout(()=>setArrivalCountry(null),10000);return()=>window.clearTimeout(timer)}},[state.unlockedCountries]);
   useEffect(()=>{if(state.phase!=="playing"||state.mode!=="blitz"||role==="guest")return;const t=setInterval(()=>setLeft(v=>{const next=v<=1?15:v-1;if(role==="host")broadcast({type:"TIMER",seconds:next});if(v<=1)game.eliminateOnTimeout();return next}),1000);return()=>clearInterval(t)},[broadcast,game.eliminateOnTimeout,role,state.currentPlayerIndex,state.mode,state.phase]);
   useEffect(()=>()=>stopNetwork(),[stopNetwork]);
 
@@ -143,7 +147,8 @@ export default function App(){
     }
     const result=game.placeCity(cityName);if(result.success&&sound)beep();return result;
   };
-  const tapOutsideMap=(event:{target:EventTarget})=>{if(state.finlandUnlocked||(event.target as HTMLElement).closest(".board")||role==="guest")return;outsideMapTapsRef.current++;if(outsideMapTapsRef.current<10)return;outsideMapTapsRef.current=0;if(role==="offline")playRemotePreview(FINLAND_ANTHEM_URL);else broadcast({type:"MUSIC",previewUrl:FINLAND_ANTHEM_URL,title:"Maamme – Finlands nationalsång"});game.unlockFinland()};
+  const tapOutsideMap=(event:{target:EventTarget})=>{if((event.target as HTMLElement).closest(".board")||role==="guest")return;outsideMapTapsRef.current++;if(outsideMapTapsRef.current<10)return;outsideMapTapsRef.current=0;setNordicMenu(true)};
+  const activateCountry=(country:Exclude<NordicCountry,"sweden">)=>{if(country===state.country||state.unlockedCountries.includes(country))return;const meta=COUNTRY_META[country];if(role==="offline")playRemotePreview(meta.anthem);else broadcast({type:"MUSIC",previewUrl:meta.anthem,title:`${meta.name} – nationalsång`});game.unlockCountry(country);setNordicMenu(false)};
 
   if(state.phase==="setup"){
     if(showOnline)return <OnlineLobby role={role} status={status} name={name} room={room} error={error} lobby={lobby} mode={onlineMode} country={onlineCountry} playerId={playerId} onName={setName} onRoom={setRoom} onMode={setOnlineMode} onCountry={country=>{setOnlineCountry(country);if(role==="host")broadcast({type:"LOBBY",players:lobbyRef.current,country})}} onCreate={createRoom} onJoin={joinRoom} onReady={()=>{if(role!=="guest"||!hostRef.current?.open)return;void primeRemoteAudioPlayback().then(()=>hostRef.current?.send({type:"READY",playerId} satisfies NetworkMessage))}} onBack={leaveOnline} onStart={()=>role==="host"&&lobby.length>=2&&lobby.every(p=>p.connected&&p.ready)&&game.startGame(lobby.map(p=>p.name),onlineMode,onlineCountry)}/>;
@@ -159,13 +164,14 @@ export default function App(){
         {state.mode==="blitz"&&<div className="timer-track"><i style={{width:`${left/15*100}%`}}/></div>}
         {!currentConnected&&<p className="connection-warning">Spelet väntar på att {game.currentPlayer} återansluter.</p>}
         <div className="scoreboard">{state.players.map((p,i)=><div key={p} className={`${i===state.currentPlayerIndex?"active":""} ${state.eliminated[i]?"out":""}`}><span style={{background:PLAYER_COLORS[i]}}>{i+1}</span><b>{p}</b><small>{counts[i]} orter</small><strong>{state.scores[i]||0} p</strong></div>)}</div>
-        <div className="desktop-input"><CityInput country={state.country} finlandUnlocked={state.finlandUnlocked} usedCityNames={state.usedCityNames} onPlaceCity={submit} disabled={!isMyTurn||pending||!currentConnected}/></div>
+        <div className="desktop-input"><CityInput country={state.country} unlockedCountries={state.unlockedCountries} usedCityNames={state.usedCityNames} onPlaceCity={submit} disabled={!isMyTurn||pending||!currentConnected}/></div>
         {role!=="guest"&&<button className="undo" disabled={!game.canUndo} onClick={game.undoLastMove}>↶ Ångra senaste drag</button>}
       </aside>
       <section className="map-wrap" onClick={tapOutsideMap}><GameBoard state={state}/><div className="map-caption"><span><i/> Senaste ort</span><strong>{state.placedCities.at(-1)?.city.name||"Väntar på första orten"}</strong></div></section>
-      <div className="mobile-input"><CityInput country={state.country} finlandUnlocked={state.finlandUnlocked} usedCityNames={state.usedCityNames} onPlaceCity={submit} disabled={!isMyTurn||pending||!currentConnected}/></div>
+      <div className="mobile-input"><CityInput country={state.country} unlockedCountries={state.unlockedCountries} usedCityNames={state.usedCityNames} onPlaceCity={submit} disabled={!isMyTurn||pending||!currentConnected}/></div>
     </section>
-    {showFinlandArrival&&<div className="finland-arrival">🇫🇮 FINLAND HAR ANSLUTIT</div>}
+    {arrivalCountry&&<div className="country-arrival" style={{borderColor:COUNTRY_META[arrivalCountry].color,color:COUNTRY_META[arrivalCountry].color}}>{COUNTRY_META[arrivalCountry].flag} {COUNTRY_META[arrivalCountry].name.toLocaleUpperCase("sv")} HAR ANSLUTIT</div>}
+    {nordicMenu&&<div className="modal-backdrop nordic-secret"><section className="nordic-menu"><p>HEMLIG MENY</p><h2>Aktivera ett land</h2>{(["finland","norway","denmark"] as const).map(country=>{const meta=COUNTRY_META[country],active=country===state.country||state.unlockedCountries.includes(country);return <button key={country} disabled={active} onClick={()=>activateCountry(country)}><span>{meta.flag}</span><b>{meta.name}</b><small>{active?"Aktiverat":"Lås upp"}</small></button>})}<button className="text-button" onClick={()=>setNordicMenu(false)}>Stäng</button></section></div>}
     {state.lastElimination&&state.phase==="playing"&&<button className="elimination" onClick={game.clearLastElimination}><b>LINJEKORSNING</b><span>{state.lastElimination.playerName} är utslagen</span><small>Tryck för att stänga</small></button>}
     {state.phase==="gameover"&&<div className="modal-backdrop"><section className="result-card"><div className="trophy">★</div><p>MATCHEN ÄR AVGJORD</p><h1>{state.winner}</h1><h2>vinner ORTEN!</h2><div className="result-scores">{state.players.slice().sort((a,b)=>state.scores[state.players.indexOf(b)]-state.scores[state.players.indexOf(a)]).map(p=>{const i=state.players.indexOf(p);return <div key={p}><span style={{background:PLAYER_COLORS[i]}}>{i+1}</span><b>{p}</b><strong>{state.scores[i]} p</strong></div>})}</div><button className="primary" onClick={role==="offline"?game.resetGame:leaveOnline}>Ny match <span>→</span></button></section></div>}
     {devMenu&&role==="host"&&<div className="dev-menu"><b>UTVECKLARLÄGE · SPELA PÅ DELTAGARNAS MOBILER</b><form className="dev-search" onSubmit={event=>{event.preventDefault();void runDevSearch()}}><input aria-label="Sök artist eller låt" value={devSearch} onChange={event=>setDevSearch(event.target.value)} placeholder="Sök artist eller låt…"/><button disabled={devMusicLoading||!devSearch.trim()} type="submit">Sök</button></form>{devResults.length>0&&<div className="dev-results">{devResults.map((track,index)=><button key={track.trackId??`${track.artistName}-${track.trackName}-${index}`} onClick={()=>playSearchResult(track)}><span>♫</span><span><strong>{track.trackName}</strong><small>{track.artistName}</small></span></button>)}</div>}<em>SNABBVAL</em>{DEV_SONGS.map(song=><button disabled={devMusicLoading} key={`${song.artist}-${song.title}`} onClick={()=>void startRoomMusic(song)}>♫ {song.artist} – {song.title}</button>)}{devMusicStatus&&<small>{devMusicStatus}</small>}<a href="https://music.apple.com/se/search" target="_blank" rel="noreferrer">Förhandslyssning via Apple Music ↗</a><button className="dev-close" onClick={()=>setDevMenu(false)}>Stäng</button></div>}

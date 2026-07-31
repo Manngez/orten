@@ -1,7 +1,8 @@
 import type { City } from "../types/game";
-import type { Country } from "../types/game";
+import type { Country, NordicCountry } from "../types/game";
 import { NORWEGIAN_CITIES } from "./norwayCities";
 import { FINNISH_CITIES } from "./finlandCities";
+import { DANISH_CITIES } from "./denmarkCities";
 
 /**
  * Offline database of Swedish urban areas and postal localities.
@@ -2590,18 +2591,19 @@ export const SWEDISH_CITIES: City[] = [
 
 const normalize = (value: string) => value.toLocaleLowerCase("sv-SE").trim();
 
-export function getCities(country:Country,finlandUnlocked=false):City[]{const base=country==="norway"?NORWEGIAN_CITIES:SWEDISH_CITIES;return finlandUnlocked?[...base,...FINNISH_CITIES]:base}
+export function citiesForCountry(country:NordicCountry):City[]{if(country==="norway")return NORWEGIAN_CITIES;if(country==="finland")return FINNISH_CITIES;if(country==="denmark")return DANISH_CITIES;return SWEDISH_CITIES}
+export function getCities(country:Country,unlockedCountries:NordicCountry[]=[]):City[]{return [country,...unlockedCountries.filter(item=>item!==country)].flatMap(citiesForCountry)}
 
 export function createCityMap(country:Country): Map<string, City> {
   return new Map(getCities(country).map(city => [normalize(city.name), city]));
 }
 
-export function searchCities(query: string, usedNames: Set<string>, country:Country, finlandUnlocked=false, limit = 10): City[] {
+export function searchCities(query:string,usedNames:Set<string>,country:Country,unlockedCountries:NordicCountry[]=[],limit=10):City[]{
   const q = normalize(query);
   if (!q) return [];
   const startsWith: City[] = [];
   const contains: City[] = [];
-  for (const city of getCities(country,finlandUnlocked)) {
+  for (const city of getCities(country,unlockedCountries)) {
     const lower = normalize(city.name);
     if (usedNames.has(lower)) continue;
     if (lower.startsWith(q)) startsWith.push(city);

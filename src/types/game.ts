@@ -1,5 +1,6 @@
 export interface City { name: string; lat: number; lng: number }
 export type Country = "sweden" | "norway";
+export type NordicCountry = "sweden" | "norway" | "finland" | "denmark";
 export interface Point { x: number; y: number }
 export interface PlacedCity { city: City; point: Point; playerIndex: number; turnNumber: number; points: number }
 export interface LineSegment { from: Point; to: Point; playerIndex: number; turnNumber: number }
@@ -15,7 +16,7 @@ export interface GameRecord {
   eliminationOrder: EliminationEvent[]; mode: GameMode; scores: number[];
 }
 export interface GameState {
-  phase: GamePhase; mode: GameMode; country: Country; finlandUnlocked: boolean; players: string[]; eliminated: boolean[];
+  phase: GamePhase; mode: GameMode; country: Country; unlockedCountries: NordicCountry[]; players: string[]; eliminated: boolean[];
   eliminationOrder: EliminationEvent[]; currentPlayerIndex: number;
   placedCities: PlacedCity[]; usedCityNames: Set<string>; lines: LineSegment[];
   lastElimination: EliminationEvent | null;
