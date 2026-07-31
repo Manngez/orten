@@ -1,4 +1,4 @@
-import type { Point } from "../types/game";
+import type { Country, Point } from "../types/game";
 
 /**
  * Project latitude/longitude to SVG coordinates.
@@ -24,10 +24,11 @@ const PADDING_Y = 25;
 const USABLE_W = SVG_WIDTH - PADDING_X * 2;
 const USABLE_H = SVG_HEIGHT - PADDING_Y * 2;
 
-export function project(lat: number, lng: number): Point {
-  const x = PADDING_X + ((lng - LNG_MIN) / (LNG_MAX - LNG_MIN)) * USABLE_W;
+export function project(lat: number, lng: number, country:Country="sweden"): Point {
+  const bounds=country==="norway"?{latMin:57.7,latMax:71.3,lngMin:4,lngMax:31.5}:{latMin:LAT_MIN,latMax:LAT_MAX,lngMin:LNG_MIN,lngMax:LNG_MAX};
+  const x = PADDING_X + ((lng - bounds.lngMin) / (bounds.lngMax - bounds.lngMin)) * USABLE_W;
   // Latitude is inverted: higher lat = higher on map = lower y
-  const y = PADDING_Y + ((LAT_MAX - lat) / (LAT_MAX - LAT_MIN)) * USABLE_H;
+  const y = PADDING_Y + ((bounds.latMax - lat) / (bounds.latMax - bounds.latMin)) * USABLE_H;
   return { x, y };
 }
 

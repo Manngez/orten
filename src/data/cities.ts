@@ -1,4 +1,6 @@
 import type { City } from "../types/game";
+import type { Country } from "../types/game";
+import { NORWEGIAN_CITIES } from "./norwayCities";
 
 /**
  * Offline database of Swedish urban areas and postal localities.
@@ -2587,16 +2589,18 @@ export const SWEDISH_CITIES: City[] = [
 
 const normalize = (value: string) => value.toLocaleLowerCase("sv-SE").trim();
 
-export function createCityMap(): Map<string, City> {
-  return new Map(SWEDISH_CITIES.map(city => [normalize(city.name), city]));
+export function getCities(country:Country):City[]{return country==="norway"?NORWEGIAN_CITIES:SWEDISH_CITIES}
+
+export function createCityMap(country:Country): Map<string, City> {
+  return new Map(getCities(country).map(city => [normalize(city.name), city]));
 }
 
-export function searchCities(query: string, usedNames: Set<string>, limit = 10): City[] {
+export function searchCities(query: string, usedNames: Set<string>, country:Country, limit = 10): City[] {
   const q = normalize(query);
   if (!q) return [];
   const startsWith: City[] = [];
   const contains: City[] = [];
-  for (const city of SWEDISH_CITIES) {
+  for (const city of getCities(country)) {
     const lower = normalize(city.name);
     if (usedNames.has(lower)) continue;
     if (lower.startsWith(q)) startsWith.push(city);
