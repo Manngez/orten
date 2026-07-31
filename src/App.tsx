@@ -41,14 +41,18 @@ async function primeRemoteAudioPlayback(){
   try{await remoteAudioElement.play();remoteAudioElement.pause();remoteAudioElement.currentTime=0}catch{}finally{remoteAudioElement.muted=false}
 }
 function normalizeSong(value:string){return value.toLocaleLowerCase("sv").normalize("NFD").replace(/\p{Diacritic}/gu,"").replace(/[^a-z0-9]/g,"")}
-type AppleTrack={trackName?:string;artistName?:string;previewUrl?:string};
+type AppleTrack={trackId?:number;trackName?:string;artistName?:string;previewUrl?:string;artworkUrl60?:string;trackViewUrl?:string};
 function searchAppleWithJsonp(query:string):Promise<AppleTrack[]>{
   return new Promise((resolve,reject)=>{const callback=`ortenApple${Date.now()}${Math.random().toString(36).slice(2)}`,script=document.createElement("script"),timer=window.setTimeout(()=>finish(null),8000),target=window as unknown as Record<string,unknown>;function finish(results:AppleTrack[]|null){window.clearTimeout(timer);script.remove();delete target[callback];results?resolve(results):reject(new Error("Apple-sökningen svarade inte"))}target[callback]=(data:{results?:AppleTrack[]})=>finish(data.results??[]);script.onerror=()=>finish(null);script.src=`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=12&country=SE&callback=${callback}`;document.head.appendChild(script)});
 }
-async function resolveApplePreview(song:DevSong){
-  const query=`${song.artist} ${song.title}`;let results:AppleTrack[]=[];
+async function searchApple(query:string){
+  let results:AppleTrack[]=[];
   try{const response=await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=12&country=SE`);if(response.ok)results=((await response.json()) as {results?:AppleTrack[]}).results??[]}catch{results=await searchAppleWithJsonp(query)}
   if(!results.length)results=await searchAppleWithJsonp(query);
+  return results.filter(track=>track.previewUrl&&track.trackName&&track.artistName);
+}
+async function resolveApplePreview(song:DevSong){
+  const results=await searchApple(`${song.artist} ${song.title}`);
   const wantedTitle=normalizeSong(song.title),wantedArtist=normalizeSong(song.artist);
   const matches=results.filter(result=>result.previewUrl&&normalizeSong(result.trackName??"").includes(wantedTitle)&&normalizeSong(result.artistName??"").includes(wantedArtist));
   return (matches.find(result=>normalizeSong(result.trackName??"")===wantedTitle)??matches[0])?.previewUrl??null;
@@ -62,12 +66,15 @@ export default function App(){
   const [name,setName]=useState(""),[room,setRoom]=useState(""),[error,setError]=useState(""),[playerId,setPlayerId]=useState("");
   const [lobby,setLobby]=useState<LobbyPlayer[]>([]),[onlineMode,setOnlineMode]=useState<GameMode>("classic"),[pending,setPending]=useState(false);
   const [logoTaps,setLogoTaps]=useState(0),[devMenu,setDevMenu]=useState(false),[devMusicStatus,setDevMusicStatus]=useState(""),[devMusicLoading,setDevMusicLoading]=useState(false);
+  const [devSearch,setDevSearch]=useState(""),[devResults,setDevResults]=useState<AppleTrack[]>([]);
   const peerRef=useRef<Peer|null>(null),hostRef=useRef<DataConnection|null>(null),guestsRef=useRef<DataConnection[]>([]);
   const idsRef=useRef(new Map<DataConnection,string>()),stateRef=useRef(state),lobbyRef=useRef(lobby),placeCityRef=useRef(game.placeCity);
   stateRef.current=state;lobbyRef.current=lobby;placeCityRef.current=game.placeCity;
 
   const broadcast=useCallback((message:NetworkMessage)=>guestsRef.current.forEach(c=>c.open&&c.send(message)),[]);
   const startRoomMusic=async(song:DevSong)=>{if(role!=="host"||devMusicLoading)return;setDevMusicLoading(true);setDevMusicStatus("Hämtar förhandslyssning…");try{const previewUrl=await resolveApplePreview(song);if(!previewUrl){setDevMusicStatus("Ingen förhandslyssning hittades.");return}broadcast({type:"MUSIC",previewUrl,title:`${song.artist} – ${song.title}`});setDevMusicStatus(`Spelar på deltagarnas enheter: ${song.title}`)}catch{setDevMusicStatus("Kunde inte hämta låten. Försök igen.")}finally{setDevMusicLoading(false)}};
+  const runDevSearch=async()=>{const query=devSearch.trim();if(!query||devMusicLoading)return;setDevMusicLoading(true);setDevMusicStatus("Söker i Apple Music…");setDevResults([]);try{const results=await searchApple(query),unique=results.filter((track,index,list)=>list.findIndex(other=>(other.trackId&&other.trackId===track.trackId)||(`${other.artistName}-${other.trackName}`===`${track.artistName}-${track.trackName}`))===index).slice(0,5);setDevResults(unique);setDevMusicStatus(unique.length?`${unique.length} låtar hittades.`:"Inga låtar med förhandslyssning hittades.")}catch{setDevMusicStatus("Sökningen misslyckades. Försök igen.")}finally{setDevMusicLoading(false)}};
+  const playSearchResult=(track:AppleTrack)=>{if(role!=="host"||!track.previewUrl)return;broadcast({type:"MUSIC",previewUrl:track.previewUrl,title:`${track.artistName} – ${track.trackName}`});setDevMusicStatus(`Spelar på deltagarnas enheter: ${track.trackName}`)};
   const setAndBroadcastLobby=useCallback((next:LobbyPlayer[])=>{lobbyRef.current=next;setLobby(next);broadcast({type:"LOBBY",players:next})},[broadcast]);
   const stopNetwork=useCallback(()=>{hostRef.current?.close();hostRef.current=null;guestsRef.current.forEach(c=>c.close());guestsRef.current=[];idsRef.current.clear();peerRef.current?.destroy();peerRef.current=null},[]);
   const leaveOnline=useCallback(()=>{if(role==="guest"&&hostRef.current?.open)hostRef.current.send({type:"LEAVE",playerId} satisfies NetworkMessage);stopNetwork();setRole("offline");setStatus("idle");setLobby([]);setShowOnline(false);setPending(false);setError("");game.resetGame()},[game,playerId,role,stopNetwork]);
@@ -154,7 +161,7 @@ export default function App(){
     </section>
     {state.lastElimination&&state.phase==="playing"&&<button className="elimination" onClick={game.clearLastElimination}><b>LINJEKORSNING</b><span>{state.lastElimination.playerName} är utslagen</span><small>Tryck för att stänga</small></button>}
     {state.phase==="gameover"&&<div className="modal-backdrop"><section className="result-card"><div className="trophy">★</div><p>MATCHEN ÄR AVGJORD</p><h1>{state.winner}</h1><h2>vinner ORTEN!</h2><div className="result-scores">{state.players.slice().sort((a,b)=>state.scores[state.players.indexOf(b)]-state.scores[state.players.indexOf(a)]).map(p=>{const i=state.players.indexOf(p);return <div key={p}><span style={{background:PLAYER_COLORS[i]}}>{i+1}</span><b>{p}</b><strong>{state.scores[i]} p</strong></div>})}</div><button className="primary" onClick={role==="offline"?game.resetGame:leaveOnline}>Ny match <span>→</span></button></section></div>}
-    {devMenu&&role==="host"&&<div className="dev-menu"><b>UTVECKLARLÄGE · SPELA PÅ DELTAGARNAS MOBILER</b>{DEV_SONGS.map(song=><button disabled={devMusicLoading} key={`${song.artist}-${song.title}`} onClick={()=>void startRoomMusic(song)}>♫ {song.artist} – {song.title}</button>)}{devMusicStatus&&<small>{devMusicStatus}</small>}<a href="https://music.apple.com/se/search" target="_blank" rel="noreferrer">Förhandslyssning via Apple Music ↗</a><button className="dev-close" onClick={()=>setDevMenu(false)}>Stäng</button></div>}
+    {devMenu&&role==="host"&&<div className="dev-menu"><b>UTVECKLARLÄGE · SPELA PÅ DELTAGARNAS MOBILER</b><form className="dev-search" onSubmit={event=>{event.preventDefault();void runDevSearch()}}><input aria-label="Sök artist eller låt" value={devSearch} onChange={event=>setDevSearch(event.target.value)} placeholder="Sök artist eller låt…"/><button disabled={devMusicLoading||!devSearch.trim()} type="submit">Sök</button></form>{devResults.length>0&&<div className="dev-results">{devResults.map((track,index)=><button key={track.trackId??`${track.artistName}-${track.trackName}-${index}`} onClick={()=>playSearchResult(track)}><span>♫</span><span><strong>{track.trackName}</strong><small>{track.artistName}</small></span></button>)}</div>}<em>SNABBVAL</em>{DEV_SONGS.map(song=><button disabled={devMusicLoading} key={`${song.artist}-${song.title}`} onClick={()=>void startRoomMusic(song)}>♫ {song.artist} – {song.title}</button>)}{devMusicStatus&&<small>{devMusicStatus}</small>}<a href="https://music.apple.com/se/search" target="_blank" rel="noreferrer">Förhandslyssning via Apple Music ↗</a><button className="dev-close" onClick={()=>setDevMenu(false)}>Stäng</button></div>}
     {stats&&<StatsPanel onClose={()=>setStats(false)}/>}
   </main>
 }
