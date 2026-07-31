@@ -36,8 +36,8 @@ export default function App(){
   const [name,setName]=useState(""),[room,setRoom]=useState(""),[error,setError]=useState(""),[playerId,setPlayerId]=useState("");
   const [lobby,setLobby]=useState<LobbyPlayer[]>([]),[onlineMode,setOnlineMode]=useState<GameMode>("classic"),[pending,setPending]=useState(false);
   const peerRef=useRef<Peer|null>(null),hostRef=useRef<DataConnection|null>(null),guestsRef=useRef<DataConnection[]>([]);
-  const idsRef=useRef(new Map<DataConnection,string>()),stateRef=useRef(state),lobbyRef=useRef(lobby);
-  stateRef.current=state;lobbyRef.current=lobby;
+  const idsRef=useRef(new Map<DataConnection,string>()),stateRef=useRef(state),lobbyRef=useRef(lobby),placeCityRef=useRef(game.placeCity);
+  stateRef.current=state;lobbyRef.current=lobby;placeCityRef.current=game.placeCity;
 
   const broadcast=useCallback((message:NetworkMessage)=>guestsRef.current.forEach(c=>c.open&&c.send(message)),[]);
   const setAndBroadcastLobby=useCallback((next:LobbyPlayer[])=>{lobbyRef.current=next;setLobby(next);broadcast({type:"LOBBY",players:next})},[broadcast]);
@@ -59,13 +59,13 @@ export default function App(){
       if(!authenticated)return;
       if(message.type==="MOVE"&&message.playerId===authenticated){
         const current=lobbyRef.current[stateRef.current.currentPlayerIndex]?.id;
-        if(current===authenticated)game.placeCity(message.cityName);
+        if(current===authenticated)placeCityRef.current(message.cityName);
       }
       if(message.type==="LEAVE"&&message.playerId===authenticated)setAndBroadcastLobby(lobbyRef.current.map(p=>p.id===authenticated?{...p,connected:false}:p));
     });
     const detach=()=>{const id=idsRef.current.get(connection);guestsRef.current=guestsRef.current.filter(c=>c!==connection);idsRef.current.delete(connection);if(id)setAndBroadcastLobby(lobbyRef.current.map(p=>p.id===id?{...p,connected:false}:p))};
     connection.on("close",detach);connection.on("error",detach);
-  },[game,setAndBroadcastLobby]);
+  },[setAndBroadcastLobby]);
 
   const createRoom=()=>{
     const code=normalizeCode(room);if(!name.trim()||!code){setError("Skriv namn och rumskod.");return}
