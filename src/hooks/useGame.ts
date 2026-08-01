@@ -6,12 +6,9 @@ import { project } from "../utils/projection";
 import { findCrossing } from "../utils/geometry";
 import { updateStatsAfterGame } from "../utils/storage";
 
-const GERMANY="germany";
-const nordicCountries:NordicCountry[]=["sweden","norway","finland","denmark"];
-const cityMaps:Record<string,Map<string,ReturnType<typeof citiesForCountry>[number]>>={
-  ...Object.fromEntries(nordicCountries.map(country=>[country,new Map(citiesForCountry(country).map(city=>[city.name.toLocaleLowerCase(),city]))])),
-  [GERMANY]:new Map(GERMAN_CITIES.map(city=>[city.name.toLocaleLowerCase(),city]))
-};
+const allCountries:NordicCountry[]=["sweden","norway","finland","denmark","germany"];
+const citiesForGameCountry=(country:NordicCountry)=>country==="germany"?GERMAN_CITIES:citiesForCountry(country);
+const cityMaps=Object.fromEntries(allCountries.map(country=>[country,new Map(citiesForGameCountry(country).map(city=>[city.name.toLocaleLowerCase(),city]))])) as Record<NordicCountry,Map<string,ReturnType<typeof citiesForGameCountry>[number]>>;
 const emptyState:GameState={phase:"setup",mode:"classic",country:"sweden",unlockedCountries:[],players:[],eliminated:[],eliminationOrder:[],currentPlayerIndex:0,placedCities:[],usedCityNames:new Set(),lines:[],lastElimination:null,crossingLines:null,winner:null,scores:[]};
 const nextActive = (out:boolean[], from:number) => {
   for(let n=1;n<=out.length;n++){ const i=(from+n)%out.length; if(!out[i]) return i; }
@@ -27,11 +24,7 @@ export function useGame(){
   },[]);
   const placeCity=useCallback((raw:string)=>{
     if(state.phase!=="playing") return {success:false,message:"Spelet är inte aktivt."};
-    const key=raw.trim().toLocaleLowerCase();
-    const primaryCountry=state.country as unknown as string;
-    const availableCountries=primaryCountry===GERMANY?[GERMANY]:[primaryCountry,...state.unlockedCountries.filter(country=>country!==primaryCountry)];
-    const cityCountry=availableCountries.find(country=>cityMaps[country]?.has(key));
-    const city=cityCountry?cityMaps[cityCountry]?.get(key):undefined;
+    const key=raw.trim().toLocaleLowerCase(),availableCountries=[state.country,...state.unlockedCountries.filter(country=>country!==state.country)] as NordicCountry[],cityCountry=availableCountries.find(country=>cityMaps[country].has(key)),city=cityCountry?cityMaps[cityCountry].get(key):undefined;
     if(!city) return {success:false,message:`"${raw}" finns inte i ortslistan.`};
     if(state.usedCityNames.has(key)) return {success:false,message:`${city.name} har redan använts.`};
     setHistory(h=>[...h,state]);
@@ -74,8 +67,7 @@ export function useGame(){
   },[]);
   const undoLastMove=useCallback(()=>{const prev=history.at(-1);if(prev){setState(prev);setHistory(h=>h.slice(0,-1))}},[history]);
   const unlockCountry=useCallback((country:NordicCountry)=>setState(current=>current.phase!=="playing"||country===current.country||current.unlockedCountries.includes(country)?current:{...current,unlockedCountries:[...current.unlockedCountries,country]}),[]);
-  const availableCities=(state.country as unknown as string)===GERMANY
-    ? GERMAN_CITIES.filter(city=>!state.usedCityNames.has(city.name.toLocaleLowerCase()))
-    : getCities(state.country,state.unlockedCountries).filter(city=>!state.usedCityNames.has(city.name.toLocaleLowerCase()));
+  const availableCountries=[state.country,...state.unlockedCountries.filter(country=>country!==state.country)] as NordicCountry[];
+  const availableCities=availableCountries.flatMap(citiesForGameCountry).filter(city=>!state.usedCityNames.has(city.name.toLocaleLowerCase()));
   return {state,currentPlayer:state.players[state.currentPlayerIndex],activeCount:state.eliminated.filter(v=>!v).length,availableCities,startGame,placeCity,eliminateOnTimeout,resetGame,setRemoteState,unlockCountry,undoLastMove,canUndo:history.length>0,clearLastElimination:()=>setState(s=>({...s,lastElimination:null}))};
 }
