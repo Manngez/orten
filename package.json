@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/enable-germany-expansion.js",
     "build": "vite build",
     "preview": "vite preview",
     "update:cities": "node scripts/fetch_cities.js",
