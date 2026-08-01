@@ -1,0 +1,2 @@
+Deploy triggered 2026-08-02T00:12:00+02:00
+Includes Germany coordinate projection fix commit 69be2e9973091ef70c4a704eb7a2c2bb83a5f5ce.
