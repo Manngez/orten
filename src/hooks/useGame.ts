@@ -1,6 +1,6 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Country, GameMode, GameState, LineSegment, NordicCountry, PlacedCity } from "../types/game";
-import { citiesForCountry, getCities } from "../data/cities";
+import { citiesForCountry } from "../data/cities";
 import { GERMAN_CITIES } from "../data/germanyCities";
 import { project } from "../utils/projection";
 import { findCrossing } from "../utils/geometry";
@@ -67,6 +67,11 @@ export function useGame(){
   },[]);
   const undoLastMove=useCallback(()=>{const prev=history.at(-1);if(prev){setState(prev);setHistory(h=>h.slice(0,-1))}},[history]);
   const unlockCountry=useCallback((country:NordicCountry)=>setState(current=>current.phase!=="playing"||country===current.country||current.unlockedCountries.includes(country)?current:{...current,unlockedCountries:[...current.unlockedCountries,country]}),[]);
+  useEffect(()=>{
+    const unlockGermany=()=>unlockCountry("germany");
+    window.addEventListener("orten-unlock-germany",unlockGermany);
+    return()=>window.removeEventListener("orten-unlock-germany",unlockGermany);
+  },[unlockCountry]);
   const availableCountries=[state.country,...state.unlockedCountries.filter(country=>country!==state.country)] as NordicCountry[];
   const availableCities=availableCountries.flatMap(citiesForGameCountry).filter(city=>!state.usedCityNames.has(city.name.toLocaleLowerCase()));
   return {state,currentPlayer:state.players[state.currentPlayerIndex],activeCount:state.eliminated.filter(v=>!v).length,availableCities,startGame,placeCity,eliminateOnTimeout,resetGame,setRemoteState,unlockCountry,undoLastMove,canUndo:history.length>0,clearLastElimination:()=>setState(s=>({...s,lastElimination:null}))};
