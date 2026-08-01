@@ -1,0 +1,2 @@
+Deploy triggered 2026-08-02 01:31 Europe/Stockholm
+Includes unified Europe map projection and GeoJSON border build.
