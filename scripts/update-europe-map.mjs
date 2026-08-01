@@ -2,6 +2,7 @@ import { writeFileSync } from "node:fs";
 
 const SOURCE="https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson";
 const wanted={SE:"sweden",NO:"norway",FI:"finland",DK:"denmark",DE:"germany",NL:"netherlands",BE:"belgium",LU:"luxembourg",FR:"france"};
+const nameFallback={Sweden:"sweden",Norway:"norway",Finland:"finland",Denmark:"denmark",Germany:"germany",Netherlands:"netherlands",Belgium:"belgium",Luxembourg:"luxembourg",France:"france"};
 const bounds={lngMin:-10,lngMax:32,latMin:41,latMax:72};
 const width=620,height=1160,pad=18;
 const mercator=lat=>Math.log(Math.tan(Math.PI/4+lat*Math.PI/360));
@@ -22,8 +23,10 @@ if(!response.ok)throw new Error(`Kunde inte hämta landsgränser: ${response.sta
 const geojson=await response.json();
 const outlines={};
 for(const feature of geojson.features){
-  const code=feature.properties?.ISO_A2??feature.properties?.iso_a2;
-  const key=wanted[code];
+  const properties=feature.properties??{};
+  const code=properties["ISO3166-1-Alpha-2"]??properties.ISO_A2??properties.iso_a2??properties.ISO_A2_EH;
+  const name=properties.name??properties.ADMIN??properties.NAME_EN??properties.NAME;
+  const key=wanted[code]??nameFallback[name];
   if(!key)continue;
   const path=geometryPath(feature.geometry);
   if(path)outlines[key]={path,main:path};
