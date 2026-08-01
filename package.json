@@ -11,7 +11,8 @@
     "update:cities": "node scripts/fetch_cities.js",
     "update:norway": "node scripts/fetch_norway.js",
     "update:finland": "node scripts/fetch_finland.js",
-    "update:nordic": "node scripts/fetch_nordic.js"
+    "update:nordic": "node scripts/fetch_nordic.js",
+    "update:all-cities": "node scripts/update-all-cities.mjs"
   },
   "dependencies": {
     "clsx": "2.1.1",
