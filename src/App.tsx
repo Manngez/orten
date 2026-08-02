@@ -76,7 +76,7 @@ export default function App(){
   const [nordicMenu,setNordicMenu]=useState(false),[arrivalCountry,setArrivalCountry]=useState<Exclude<NordicCountry,"sweden">|null>(null);
   const peerRef=useRef<Peer|null>(null),hostRef=useRef<DataConnection|null>(null),guestsRef=useRef<DataConnection[]>([]);
   const idsRef=useRef(new Map<DataConnection,string>()),stateRef=useRef(state),lobbyRef=useRef(lobby),placeCityRef=useRef(game.placeCity),countryRef=useRef(onlineCountry);
-  const currentPlayerTapsRef=useRef(0),previousUnlockedRef=useRef(state.unlockedCountries);
+  const currentPlayerTapsRef=useRef(0),previousUnlockedRef=useRef(state.unlockedCountries),lastSaikTurnRef=useRef(-1);
   stateRef.current=state;lobbyRef.current=lobby;placeCityRef.current=game.placeCity;countryRef.current=onlineCountry;
 
   const broadcast=useCallback((message:NetworkMessage)=>guestsRef.current.forEach(c=>c.open&&c.send(message)),[]);
@@ -129,6 +129,26 @@ export default function App(){
     peer.on("error",()=>{setStatus("error");setError("Kunde inte ansluta till rummet.")});
   };
 
+  useEffect(()=>{
+    const latest=state.placedCities.at(-1);
+    if(!latest||normalizeSong(latest.city.name)!=="skelleftea"||lastSaikTurnRef.current===latest.turnNumber)return;
+    lastSaikTurnRef.current=latest.turnNumber;
+    if(role==="guest")return;
+    void (async()=>{
+      try{
+        const queries=["Skellefteå AIK","Heja Skellefteå AIK","Skellefteå hockey svart och gult"];
+        const firstQuery=queries[Math.floor(Math.random()*queries.length)];
+        let tracks=await searchApple(firstQuery);
+        if(!tracks.length)tracks=await searchApple("Skellefteå AIK");
+        if(!tracks.length)return;
+        const track=tracks[Math.floor(Math.random()*tracks.length)];
+        if(!track.previewUrl)return;
+        const title=`${track.artistName??"Skellefteå AIK"} – ${track.trackName??"Easter egg"}`;
+        if(sound)playRemotePreview(track.previewUrl);
+        if(role==="host")broadcast({type:"MUSIC",previewUrl:track.previewUrl,title});
+      }catch{}
+    })();
+  },[broadcast,role,sound,state.placedCities]);
   useEffect(()=>{localStorage.setItem("blindkarta_sound",sound?"on":"off")},[sound]);
   useEffect(()=>{setLeft(15)},[state.currentPlayerIndex,state.phase]);
   useEffect(()=>{if(role!=="host"||status!=="connected")return;broadcast({type:"STATE",state:toWireState(state)})},[broadcast,role,state,status]);
