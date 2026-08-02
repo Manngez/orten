@@ -5,8 +5,12 @@ import { project } from "../utils/projection";
 import { findCrossing } from "../utils/geometry";
 import { updateStatsAfterGame } from "../utils/storage";
 
-const allCountries:NordicCountry[]=["sweden","norway","finland","denmark","germany","netherlands","belgium","luxembourg","france","estonia","latvia","lithuania","poland","switzerland","austria","hungary","italy","spain"];
-const cityMaps=Object.fromEntries(allCountries.map(country=>[country,new Map(citiesForCountry(country).map(city=>[city.name.toLocaleLowerCase(),city]))])) as Record<NordicCountry,Map<string,ReturnType<typeof citiesForCountry>[number]>>;
+const cityMaps=new Map<NordicCountry,Map<string,ReturnType<typeof citiesForCountry>[number]>>();
+const cityMapForCountry=(country:NordicCountry)=>{
+  let map=cityMaps.get(country);
+  if(!map){map=new Map(citiesForCountry(country).map(city=>[city.name.toLocaleLowerCase("sv-SE"),city]));cityMaps.set(country,map)}
+  return map;
+};
 const emptyState:GameState={phase:"setup",mode:"classic",country:"sweden",unlockedCountries:[],players:[],eliminated:[],eliminationOrder:[],currentPlayerIndex:0,placedCities:[],usedCityNames:new Set(),lines:[],lastElimination:null,crossingLines:null,winner:null,scores:[]};
 const nextActive=(out:boolean[],from:number)=>{for(let n=1;n<=out.length;n++){const i=(from+n)%out.length;if(!out[i])return i}return from};
 const distance=(a:{x:number;y:number},b:{x:number;y:number})=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -16,7 +20,7 @@ export function useGame(){
   const startGame=useCallback((players:string[],mode:GameMode,country:Country="sweden")=>{setHistory([]);setState({...emptyState,phase:"playing",players,mode,country,eliminated:players.map(()=>false),scores:players.map(()=>0)})},[]);
   const placeCity=useCallback((raw:string)=>{
     if(state.phase!=="playing")return{success:false,message:"Spelet är inte aktivt."};
-    const key=raw.trim().toLocaleLowerCase(),availableCountries=[state.country,...state.unlockedCountries.filter(country=>country!==state.country)] as NordicCountry[],cityCountry=availableCountries.find(country=>cityMaps[country].has(key)),city=cityCountry?cityMaps[cityCountry].get(key):undefined;
+    const key=raw.trim().toLocaleLowerCase("sv-SE"),availableCountries=[state.country,...state.unlockedCountries.filter(country=>country!==state.country)] as NordicCountry[],cityCountry=availableCountries.find(country=>cityMapForCountry(country).has(key)),city=cityCountry?cityMapForCountry(cityCountry).get(key):undefined;
     if(!city)return{success:false,message:`"${raw}" finns inte i ortslistan.`};
     if(state.usedCityNames.has(key))return{success:false,message:`${city.name} har redan använts.`};
     setHistory(h=>[...h,state]);
@@ -29,6 +33,5 @@ export function useGame(){
   },[state]);
   const eliminateOnTimeout=useCallback(()=>{if(state.phase!=="playing")return;const i=state.currentPlayerIndex,eliminated=[...state.eliminated];eliminated[i]=true;const event={playerName:state.players[i],cityName:"Tiden tog slut"},eliminationOrder=[...state.eliminationOrder,event],active=eliminated.filter(v=>!v).length;if(active<=1){const winner=state.players[eliminated.findIndex(v=>!v)],counts=state.players.map((_,pi)=>state.placedCities.filter(p=>p.playerIndex===pi).length);updateStatsAfterGame(state.players,winner,eliminationOrder,state.placedCities.length,state.mode,state.scores,counts);setState(s=>({...s,phase:"gameover",eliminated,eliminationOrder,lastElimination:event,winner}))}else setState(s=>({...s,eliminated,eliminationOrder,lastElimination:event,currentPlayerIndex:nextActive(eliminated,i)}))},[state]);
   const resetGame=useCallback(()=>{setHistory([]);setState(emptyState)},[]),setRemoteState=useCallback((next:GameState)=>{setHistory([]);setState({...next,unlockedCountries:next.unlockedCountries??[],usedCityNames:new Set(next.usedCityNames)})},[]),undoLastMove=useCallback(()=>{const prev=history.at(-1);if(prev){setState(prev);setHistory(h=>h.slice(0,-1))}},[history]),unlockCountry=useCallback((country:NordicCountry)=>setState(current=>current.phase!=="playing"||country===current.country||current.unlockedCountries.includes(country)?current:{...current,unlockedCountries:[...current.unlockedCountries,country]}),[]);
-  const availableCountries=[state.country,...state.unlockedCountries.filter(country=>country!==state.country)] as NordicCountry[],availableCities=availableCountries.flatMap(citiesForCountry).filter(city=>!state.usedCityNames.has(city.name.toLocaleLowerCase()));
-  return{state,currentPlayer:state.players[state.currentPlayerIndex],activeCount:state.eliminated.filter(v=>!v).length,availableCities,startGame,placeCity,eliminateOnTimeout,resetGame,setRemoteState,unlockCountry,undoLastMove,canUndo:history.length>0,clearLastElimination:()=>setState(s=>({...s,lastElimination:null}))};
+  return{state,currentPlayer:state.players[state.currentPlayerIndex],activeCount:state.eliminated.filter(v=>!v).length,startGame,placeCity,eliminateOnTimeout,resetGame,setRemoteState,unlockCountry,undoLastMove,canUndo:history.length>0,clearLastElimination:()=>setState(s=>({...s,lastElimination:null}))};
 }
