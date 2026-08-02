@@ -8,8 +8,9 @@ export default function GameSetup({onStart,onStats,onOnline}:{onStart:(p:string[
   return <main className="setup-shell">
     <section className="hero">
       <div className="brand"><span className="brand-mark">O</span><span>ORTEN <b>2.0</b></span></div>
-      <div className="hero-copy"><p className="eyebrow">{country==="norway"?"Norske steder. Skarpe svinger.":"Svenska orter. Skarpa svängar."}</p><h1>Dra linjen.<br/><em>Undvik krysset.</em></h1><p>Det nordiska geografispelet där nästa ort kan bli din sista.</p></div>
-      <div className="rule-strip"><span>01 Nämn en ort</span><span>02 Linjen dras</span><span>03 Korsar du åker du ut</span></div>
+      <div className="hero-copy"><p className="eyebrow">{country==="norway"?"Norge är spelplanen":"Sverige är spelplanen"}</p><h1>Dra linjen.<br/><em>Undvik krysset.</em></h1><p>Det nordiska geografispelet där varje ort öppnar en ny väg — och nästa linje kan bli din sista.</p></div>
+      <div className="landing-visual" aria-hidden="true"><img src="https://manngez.github.io/mlspel/assets/mlspel-hero.png" alt=""/><span className="map-chip">63° N · SPELET BÖRJAR HÄR</span><span className="route-chip">ORT → LINJE → NÄSTA ORT</span></div>
+      <div className="rule-strip"><span><b>01</b> Nämn en ort</span><span><b>02</b> Linjen dras</span><span><b>03</b> Korsa aldrig</span></div>
     </section>
     <section className="setup-card">
       <div className="section-label">Land</div><div className="country-grid"><button className={country==="sweden"?"selected":""} onClick={()=>setCountry("sweden")}>🇸🇪 Sverige</button><button className={country==="norway"?"selected":""} onClick={()=>setCountry("norway")}>🇳🇴 Norge</button></div>
