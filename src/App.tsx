@@ -136,10 +136,7 @@ export default function App(){
     if(role==="guest")return;
     void (async()=>{
       try{
-        const queries=["Skellefteå AIK","Heja Skellefteå AIK","Skellefteå hockey svart och gult"];
-        const firstQuery=queries[Math.floor(Math.random()*queries.length)];
-        let tracks=await searchApple(firstQuery);
-        if(!tracks.length)tracks=await searchApple("Skellefteå AIK");
+        const tracks=await searchApple("Skellefteå AIK");
         if(!tracks.length)return;
         const track=tracks[Math.floor(Math.random()*tracks.length)];
         if(!track.previewUrl)return;
