@@ -6,7 +6,7 @@ import { PLAYER_COLORS } from "./GameSetup";
 const MAX_ZOOM=18;
 
 const countryStyle:Record<NordicCountry,{stroke:string;fill:string}>={
-  sweden:{stroke:"#3b7f78",fill:"#123733"},norway:{stroke:"#ff4268",fill:"#351b2a"},finland:{stroke:"#27d9ff",fill:"#0b2b35"},denmark:{stroke:"#fff",fill:"#353946"},germany:{stroke:"#f4c542",fill:"#2d2417"},netherlands:{stroke:"#ff8c42",fill:"#3a2417"},belgium:{stroke:"#ffd447",fill:"#332d16"},luxembourg:{stroke:"#70d6ff",fill:"#17313a"},france:{stroke:"#7aa2ff",fill:"#19243e"}
+  sweden:{stroke:"#3b7f78",fill:"#123733"},norway:{stroke:"#ff4268",fill:"#351b2a"},finland:{stroke:"#27d9ff",fill:"#0b2b35"},denmark:{stroke:"#fff",fill:"#353946"},germany:{stroke:"#f4c542",fill:"#2d2417"},netherlands:{stroke:"#ff8c42",fill:"#3a2417"},belgium:{stroke:"#ffd447",fill:"#332d16"},luxembourg:{stroke:"#70d6ff",fill:"#17313a"},france:{stroke:"#7aa2ff",fill:"#19243e"},estonia:{stroke:"#4895ef",fill:"#152943"},latvia:{stroke:"#b56576",fill:"#351d25"},lithuania:{stroke:"#80b918",fill:"#263213"},poland:{stroke:"#ff5d8f",fill:"#381b27"},switzerland:{stroke:"#ff595e",fill:"#371a1b"},austria:{stroke:"#ef476f",fill:"#351923"},hungary:{stroke:"#06d6a0",fill:"#12352d"},italy:{stroke:"#52b788",fill:"#15332a"},spain:{stroke:"#ffb703",fill:"#382c12"}
 };
 
 const clientToSvgPoint=(svg:SVGSVGElement,clientX:number,clientY:number)=>{

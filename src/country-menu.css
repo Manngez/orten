@@ -1,0 +1,9 @@
+.nordic-secret {
+  overflow-y: auto;
+  padding: 14px;
+}
+
+.nordic-menu {
+  max-height: calc(100dvh - 28px);
+  overflow-y: auto;
+}

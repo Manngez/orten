@@ -5,7 +5,7 @@ import { project } from "../utils/projection";
 import { findCrossing } from "../utils/geometry";
 import { updateStatsAfterGame } from "../utils/storage";
 
-const allCountries:NordicCountry[]=["sweden","norway","finland","denmark","germany","netherlands","belgium","luxembourg","france"];
+const allCountries:NordicCountry[]=["sweden","norway","finland","denmark","germany","netherlands","belgium","luxembourg","france","estonia","latvia","lithuania","poland","switzerland","austria","hungary","italy","spain"];
 const cityMaps=Object.fromEntries(allCountries.map(country=>[country,new Map(citiesForCountry(country).map(city=>[city.name.toLocaleLowerCase(),city]))])) as Record<NordicCountry,Map<string,ReturnType<typeof citiesForCountry>[number]>>;
 const emptyState:GameState={phase:"setup",mode:"classic",country:"sweden",unlockedCountries:[],players:[],eliminated:[],eliminationOrder:[],currentPlayerIndex:0,placedCities:[],usedCityNames:new Set(),lines:[],lastElimination:null,crossingLines:null,winner:null,scores:[]};
 const nextActive=(out:boolean[],from:number)=>{for(let n=1;n<=out.length;n++){const i=(from+n)%out.length;if(!out[i])return i}return from};

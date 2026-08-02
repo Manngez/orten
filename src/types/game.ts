@@ -1,6 +1,6 @@
 export interface City { name: string; lat: number; lng: number }
 export type Country = "sweden" | "norway";
-export type NordicCountry = "sweden" | "norway" | "finland" | "denmark" | "germany" | "netherlands" | "belgium" | "luxembourg" | "france";
+export type NordicCountry = "sweden" | "norway" | "finland" | "denmark" | "germany" | "netherlands" | "belgium" | "luxembourg" | "france" | "estonia" | "latvia" | "lithuania" | "poland" | "switzerland" | "austria" | "hungary" | "italy" | "spain";
 export interface Point { x: number; y: number }
 export interface PlacedCity { city: City; point: Point; playerIndex: number; turnNumber: number; points: number }
 export interface LineSegment { from: Point; to: Point; playerIndex: number; turnNumber: number }

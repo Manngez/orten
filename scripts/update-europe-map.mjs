@@ -1,9 +1,9 @@
 import { writeFileSync } from "node:fs";
 
 const SOURCE="https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson";
-const wanted={SE:"sweden",NO:"norway",FI:"finland",DK:"denmark",DE:"germany",NL:"netherlands",BE:"belgium",LU:"luxembourg",FR:"france"};
-const nameFallback={Sweden:"sweden",Norway:"norway",Finland:"finland",Denmark:"denmark",Germany:"germany",Netherlands:"netherlands",Belgium:"belgium",Luxembourg:"luxembourg",France:"france"};
-const bounds={lngMin:-10,lngMax:32,latMin:41,latMax:72};
+const wanted={SE:"sweden",NO:"norway",FI:"finland",DK:"denmark",DE:"germany",NL:"netherlands",BE:"belgium",LU:"luxembourg",FR:"france",EE:"estonia",LV:"latvia",LT:"lithuania",PL:"poland",CH:"switzerland",AT:"austria",HU:"hungary",IT:"italy",ES:"spain"};
+const nameFallback={Sweden:"sweden",Norway:"norway",Finland:"finland",Denmark:"denmark",Germany:"germany",Netherlands:"netherlands",Belgium:"belgium",Luxembourg:"luxembourg",France:"france",Estonia:"estonia",Latvia:"latvia",Lithuania:"lithuania",Poland:"poland",Switzerland:"switzerland",Austria:"austria",Hungary:"hungary",Italy:"italy",Spain:"spain"};
+const bounds={lngMin:-10,lngMax:32,latMin:35,latMax:72};
 const width=620,height=1160,pad=18;
 const mercator=lat=>Math.log(Math.tan(Math.PI/4+lat*Math.PI/360));
 const top=mercator(bounds.latMax),bottom=mercator(bounds.latMin);
