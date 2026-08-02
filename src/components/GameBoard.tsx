@@ -3,6 +3,8 @@ import type { GameState,NordicCountry } from "../types/game";
 import { EUROPE_OUTLINES,EUROPE_VIEWBOX } from "../data/europeOutlines";
 import { PLAYER_COLORS } from "./GameSetup";
 
+const MAX_ZOOM=18;
+
 const countryStyle:Record<NordicCountry,{stroke:string;fill:string}>={
   sweden:{stroke:"#3b7f78",fill:"#123733"},norway:{stroke:"#ff4268",fill:"#351b2a"},finland:{stroke:"#27d9ff",fill:"#0b2b35"},denmark:{stroke:"#fff",fill:"#353946"},germany:{stroke:"#f4c542",fill:"#2d2417"},netherlands:{stroke:"#ff8c42",fill:"#3a2417"},belgium:{stroke:"#ffd447",fill:"#332d16"},luxembourg:{stroke:"#70d6ff",fill:"#17313a"},france:{stroke:"#7aa2ff",fill:"#19243e"}
 };
@@ -30,7 +32,7 @@ export default function GameBoard({state}:{state:GameState}){
     const points=[...pointers.current.values()],start=gesture.current;
     if(points.length===1){setView({...start.view,x:start.view.x+(points[0].x-start.center.x),y:start.view.y+(points[0].y-start.center.y)});return}
     const[a,b]=points,currentDistance=Math.hypot(a.x-b.x,a.y-b.y),center={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
-    const scale=Math.min(6,Math.max(.65,start.view.scale*(currentDistance/start.distance)));
+    const scale=Math.min(MAX_ZOOM,Math.max(.65,start.view.scale*(currentDistance/start.distance)));
     const anchorX=(start.center.x-start.view.x)/start.view.scale,anchorY=(start.center.y-start.view.y)/start.view.scale;
     setView({scale,x:center.x-anchorX*scale,y:center.y-anchorY*scale});
   };
@@ -43,7 +45,7 @@ export default function GameBoard({state}:{state:GameState}){
   const zoom=(event:React.WheelEvent<SVGSVGElement>)=>{
     event.preventDefault();
     const point=clientToSvgPoint(event.currentTarget,event.clientX,event.clientY);
-    setView(current=>{const scale=Math.min(6,Math.max(.65,current.scale*(event.deltaY>0?.9:1.1))),anchorX=(point.x-current.x)/current.scale,anchorY=(point.y-current.y)/current.scale;return{scale,x:point.x-anchorX*scale,y:point.y-anchorY*scale}});
+    setView(current=>{const scale=Math.min(MAX_ZOOM,Math.max(.65,current.scale*(event.deltaY>0?.9:1.1))),anchorX=(point.x-current.x)/current.scale,anchorY=(point.y-current.y)/current.scale;return{scale,x:point.x-anchorX*scale,y:point.y-anchorY*scale}});
   };
   return <div className="board nordic-board"><svg viewBox={EUROPE_VIEWBOX} preserveAspectRatio="xMidYMid meet" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp} onWheel={zoom}>
     <defs><filter id="lineGlow"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><filter id="countryGlow"><feGaussianBlur stdDeviation="5" result="glow"/><feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge></filter><pattern id="grid" width="26" height="26" patternUnits="userSpaceOnUse"><path d="M26 0H0V26" fill="none" stroke="#61b7b0" strokeOpacity=".08" strokeWidth=".6"/></pattern></defs>
