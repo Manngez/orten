@@ -146,6 +146,19 @@ export default function App(){
       }catch{}
     })();
   },[broadcast,role,sound,state.placedCities]);
+  useEffect(()=>{
+    if(state.phase==="setup")return;
+    window.scrollTo(0,0);
+    document.documentElement.scrollTop=0;
+    document.body.scrollTop=0;
+  },[state.phase]);
+  useEffect(()=>{
+    if(!nordicMenu)return;
+    window.scrollTo(0,0);
+    const previous=document.body.style.overflow;
+    document.body.style.overflow="hidden";
+    return()=>{document.body.style.overflow=previous};
+  },[nordicMenu]);
   useEffect(()=>{localStorage.setItem("blindkarta_sound",sound?"on":"off")},[sound]);
   useEffect(()=>{setLeft(15)},[state.currentPlayerIndex,state.phase]);
   useEffect(()=>{if(role!=="host"||status!=="connected")return;broadcast({type:"STATE",state:toWireState(state)})},[broadcast,role,state,status]);
