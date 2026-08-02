@@ -67,3 +67,31 @@
   .setup-shell .hero{min-height:500px}
   .setup-shell .setup-card{margin:-48px 0 0}
 }
+
+
+/* Compact mobile controls so more of the setup fits in one view */
+@media(max-width:600px){
+  .setup-shell .setup-card{padding:18px 14px 20px}
+  .setup-shell .section-label{margin-bottom:7px;font-size:10px}
+  .setup-shell .country-grid{gap:8px;margin-bottom:17px}
+  .setup-shell .country-grid button{min-height:50px;padding:8px;font-size:15px}
+  .setup-shell .country-grid button span{font-size:20px}
+  .setup-shell .mode-grid{gap:8px;margin-bottom:17px}
+  .setup-shell .mode-grid button{grid-template-columns:34px 1fr;min-height:61px;padding:8px}
+  .setup-shell .mode-grid strong{font-size:14px}
+  .setup-shell .mode-grid small{font-size:8px}
+  .mode-icon{font-size:27px}
+  .setup-shell .section-row{margin-bottom:7px}
+  .setup-shell .stepper{height:36px}
+  .setup-shell .stepper button{width:42px;height:36px;font-size:22px}
+  .setup-shell .stepper b{width:40px;font-size:16px}
+  .setup-shell .name-grid{gap:7px}
+  .setup-shell .name-grid label{height:46px}
+  .setup-shell .name-grid label>span{width:34px;height:34px;margin:5px 7px;font-size:13px}
+  .player-icon{font-size:19px}
+  .setup-shell .name-grid input{font-size:14px;padding:8px}
+  .setup-shell .primary{height:50px;margin-top:13px;padding:12px 15px;font-size:13px}
+  .setup-shell .primary>span{font-size:24px}
+  .setup-shell .online-primary{height:47px;margin-top:9px;padding:10px 14px;font-size:12px}
+  .setup-shell .text-button{margin-top:14px;font-size:11px}
+}
