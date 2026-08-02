@@ -1,16 +1,10 @@
 import { useCallback, useState } from "react";
 import type { Country, GameMode, GameState, LineSegment, NordicCountry, PlacedCity } from "../types/game";
-import { citiesForCountry } from "../data/cities";
+import { activeCountries,findCity } from "../cityClient";
 import { project } from "../utils/projection";
 import { findCrossing } from "../utils/geometry";
 import { updateStatsAfterGame } from "../utils/storage";
 
-const cityMaps=new Map<NordicCountry,Map<string,ReturnType<typeof citiesForCountry>[number]>>();
-const cityMapForCountry=(country:NordicCountry)=>{
-  let map=cityMaps.get(country);
-  if(!map){map=new Map(citiesForCountry(country).map(city=>[city.name.toLocaleLowerCase("sv-SE"),city]));cityMaps.set(country,map)}
-  return map;
-};
 const emptyState:GameState={phase:"setup",mode:"classic",country:"sweden",unlockedCountries:[],players:[],eliminated:[],eliminationOrder:[],currentPlayerIndex:0,placedCities:[],usedCityNames:new Set(),lines:[],lastElimination:null,crossingLines:null,winner:null,scores:[]};
 const nextActive=(out:boolean[],from:number)=>{for(let n=1;n<=out.length;n++){const i=(from+n)%out.length;if(!out[i])return i}return from};
 const distance=(a:{x:number;y:number},b:{x:number;y:number})=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -18,10 +12,10 @@ const distance=(a:{x:number;y:number},b:{x:number;y:number})=>Math.hypot(a.x-b.x
 export function useGame(){
   const [state,setState]=useState<GameState>(emptyState),[history,setHistory]=useState<GameState[]>([]);
   const startGame=useCallback((players:string[],mode:GameMode,country:Country="sweden")=>{setHistory([]);setState({...emptyState,phase:"playing",players,mode,country,eliminated:players.map(()=>false),scores:players.map(()=>0)})},[]);
-  const placeCity=useCallback((raw:string)=>{
+  const placeCity=useCallback(async(raw:string)=>{
     if(state.phase!=="playing")return{success:false,message:"Spelet är inte aktivt."};
-    const key=raw.trim().toLocaleLowerCase("sv-SE"),availableCountries=[state.country,...state.unlockedCountries.filter(country=>country!==state.country)] as NordicCountry[],cityCountry=availableCountries.find(country=>cityMapForCountry(country).has(key)),city=cityCountry?cityMapForCountry(cityCountry).get(key):undefined;
-    if(!city)return{success:false,message:`"${raw}" finns inte i ortslistan.`};
+    const key=raw.trim().toLocaleLowerCase("sv-SE"),match=await findCity(raw,activeCountries(state.country,state.unlockedCountries)),city=match?.city,cityCountry=match?.country;
+    if(!city||!cityCountry)return{success:false,message:`"${raw}" finns inte i ortslistan.`};
     if(state.usedCityNames.has(key))return{success:false,message:`${city.name} har redan använts.`};
     setHistory(h=>[...h,state]);
     const point=project(city.lat,city.lng,cityCountry),playerIndex=state.currentPlayerIndex,previous=state.placedCities.at(-1),points=previous?Math.max(10,Math.round(distance(previous.point,point)*2)):50;

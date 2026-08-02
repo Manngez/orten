@@ -116,7 +116,7 @@ export default function App(){
       if(!authenticated)return;
       if(message.type==="MOVE"&&message.playerId===authenticated){
         const current=lobbyRef.current[stateRef.current.currentPlayerIndex]?.id;
-        if(current===authenticated)placeCityRef.current(message.cityName);
+        if(current===authenticated)void placeCityRef.current(message.cityName);
       }
       if(message.type==="LEAVE"&&message.playerId===authenticated)setAndBroadcastLobby(lobbyRef.current.map(p=>p.id===authenticated?{...p,connected:false}:p));
       if(message.type==="READY"&&message.playerId===authenticated)setAndBroadcastLobby(lobbyRef.current.map(p=>p.id===authenticated?{...p,connected:true,ready:true}:p));
@@ -184,12 +184,12 @@ export default function App(){
   const currentOnlineId=lobby[state.currentPlayerIndex]?.id;
   const isMyTurn=role==="offline"||currentOnlineId===playerId;
   const currentConnected=role==="offline"||lobby[state.currentPlayerIndex]?.connected===true;
-  const submit=(cityName:string)=>{
+  const submit=async(cityName:string)=>{
     if(role==="guest"){
       if(!isMyTurn||pending||!hostRef.current?.open)return{success:false,message:"Vänta tills det är din tur."};
       setPending(true);hostRef.current.send({type:"MOVE",cityName,playerId} satisfies NetworkMessage);return{success:true};
     }
-    const result=game.placeCity(cityName);if(result.success&&sound)beep();return result;
+    const result=await game.placeCity(cityName);if(result.success&&sound)beep();return result;
   };
   const tapCurrentPlayer=()=>{if(role==="guest")return;currentPlayerTapsRef.current++;if(currentPlayerTapsRef.current<10)return;currentPlayerTapsRef.current=0;setNordicMenu(true)};
   const activateCountry=(country:Exclude<NordicCountry,"sweden">)=>{if(country===state.country||state.unlockedCountries.includes(country))return;const meta=COUNTRY_META[country];if(role==="offline")playRemotePreview(meta.anthem);else broadcast({type:"MUSIC",previewUrl:meta.anthem,title:`${meta.name} – nationalsång`});game.unlockCountry(country);setNordicMenu(false)};
