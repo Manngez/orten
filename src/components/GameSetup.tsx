@@ -2,13 +2,13 @@ import { useState } from "react";
 import type { Country, GameMode } from "../types/game";
 export const PLAYER_COLORS=["#fb7185","#38bdf8","#34d399","#fbbf24","#a78bfa","#f472b6","#22d3ee","#fb923c"];
 export default function GameSetup({onStart,onStats,onOnline}:{onStart:(p:string[],m:GameMode,c:Country)=>void;onStats:()=>void;onOnline:()=>void}){
-  const [count,setCount]=useState(2),[names,setNames]=useState(["",""]),[mode,setMode]=useState<GameMode>("classic"),[country,setCountry]=useState<Country>("sweden"),[error,setError]=useState("");
+  const [count,setCount]=useState(2),[names,setNames]=useState(["",""]),[mode,setMode]=useState<GameMode>("classic"),[country,setCountry]=useState<Country>("sweden"),[error,setError]=useState(""),[showRules,setShowRules]=useState(false);
   const changeCount=(n:number)=>{setCount(n);setNames(v=>Array.from({length:n},(_,i)=>v[i]||""))};
   const start=()=>{const p=names.map((n,i)=>n.trim()||`Spelare ${i+1}`);if(new Set(p.map(n=>n.toLowerCase())).size<p.length){setError("Alla spelare behöver unika namn.");return}onStart(p,mode,country)};
   return <main className="setup-shell">
     <section className="hero">
       <div className="landing-actions">
-        <button className="round-action" onClick={onStats} aria-label="Inställningar och statistik">⚙</button>
+        <button className="round-action help-action" onClick={()=>setShowRules(true)} aria-label="Så spelar du">?</button>
         <button className="leaderboard-action" onClick={onStats}><span>♛</span> Topplista</button>
       </div>
       <div className="orten-logo" aria-label="ORTEN">
@@ -34,5 +34,6 @@ export default function GameSetup({onStart,onStats,onOnline}:{onStart:(p:string[
       <button className="online-primary" onClick={onOnline}>Spela online <span>↗</span></button>
       <button className="text-button" onClick={onStats}>Visa lokal statistik</button>
     </section>
+    {showRules&&<div className="modal-backdrop rules-backdrop" onMouseDown={event=>event.target===event.currentTarget&&setShowRules(false)}><section className="rules-card" role="dialog" aria-modal="true" aria-labelledby="rules-title"><button className="rules-close" onClick={()=>setShowRules(false)} aria-label="Stäng spelregler">×</button><p className="eyebrow">Så spelar du</p><h2 id="rules-title">Skriv orter.<br/><em>Undvik korsningen.</em></h2><ol><li><span>1</span><div><b>Välj en ort</b><small>Spelarna turas om att skriva en ort som inte redan använts.</small></div></li><li><span>2</span><div><b>Linjen dras</b><small>Varje ny ort kopplas automatiskt ihop med den föregående.</small></div></li><li><span>3</span><div><b>Korsa inte</b><small>Korsar din nya linje en gammal linje blir du utslagen.</small></div></li><li><span>4</span><div><b>Sist kvar vinner</b><small>Fortsätt tills bara en spelare återstår. Längre sträckor ger fler poäng.</small></div></li></ol><div className="rules-modes"><span><b>Klassisk</b> Obegränsad tid</span><span><b>Blitz</b> 15 sekunder</span></div><button className="primary" onClick={()=>setShowRules(false)}>Jag förstår <span>→</span></button></section></div>}
   </main>
 }
