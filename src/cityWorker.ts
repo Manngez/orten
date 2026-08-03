@@ -1,8 +1,10 @@
 /// <reference lib="webworker" />
 import type { City,NordicCountry } from "./types/game";
+import { CITY_ALIASES } from "./data/cityAliases";
+import { GENERATED_CITY_ALIASES } from "./data/generatedCityAliases";
 
 type CityModule=Record<string,City[]>;
-type LoadedCountry={cities:City[];byName:Map<string,City>};
+type LoadedCountry={searchable:{city:City;key:string}[];byName:Map<string,City>;byFoldedName:Map<string,City>};
 type WorkerRequest=
   |{id:number;type:"search";query:string;countries:NordicCountry[];usedNames:string[];limit:number}
   |{id:number;type:"find";name:string;countries:NordicCountry[]};
@@ -22,24 +24,35 @@ const loaders:Record<NordicCountry,()=>Promise<CityModule>>={
 };
 const loaded=new Map<NordicCountry,Promise<LoadedCountry>>();
 const normalize=(value:string)=>value.normalize("NFKC").toLocaleLowerCase("sv-SE").trim();
+const fold=(value:string)=>normalize(value).normalize("NFKD").replace(/\p{M}/gu,"");
+const aliases=[...CITY_ALIASES,...GENERATED_CITY_ALIASES].map(alias=>({...alias,searchNames:[alias.name,...alias.aliases].map(fold)}));
 const loadCountry=(country:NordicCountry)=>{
   let pending=loaded.get(country);
-  if(!pending){pending=loaders[country]().then(module=>{const cities=Object.values(module).find(Array.isArray)??[];return{cities,byName:new Map(cities.map(city=>[normalize(city.name),city]))}});loaded.set(country,pending)}
+  if(!pending){pending=loaders[country]().then(module=>{const cities=Object.values(module).find(Array.isArray)??[],searchable=cities.map(city=>({city,key:fold(city.name)}));return{searchable,byName:new Map(cities.map(city=>[normalize(city.name),city])),byFoldedName:new Map(searchable.map(item=>[item.key,item.city]))}});loaded.set(country,pending)}
   return pending;
+};
+
+const resolveAlias=async(value:string,countries:NordicCountry[])=>{
+  const key=fold(value),alias=aliases.find(item=>countries.includes(item.country)&&item.searchNames.includes(key));
+  if(!alias)return null;
+  const country=await loadCountry(alias.country),city=country.byName.get(normalize(alias.name))??country.byFoldedName.get(fold(alias.name));
+  return city?{city,country:alias.country}:null;
 };
 
 self.onmessage=async(event:MessageEvent<WorkerRequest>)=>{
   const request=event.data;
   try{
     if(request.type==="find"){
-      const key=normalize(request.name);
-      for(const country of request.countries){const city=(await loadCountry(country)).byName.get(key);if(city){self.postMessage({id:request.id,result:{city,country}});return}}
+      const alias=await resolveAlias(request.name,request.countries);if(alias){self.postMessage({id:request.id,result:alias});return}
+      const key=normalize(request.name),foldedKey=fold(request.name);
+      for(const country of request.countries){const loadedCountry=await loadCountry(country),city=loadedCountry.byName.get(key)??loadedCountry.byFoldedName.get(foldedKey);if(city){self.postMessage({id:request.id,result:{city,country}});return}}
       self.postMessage({id:request.id,result:null});return;
     }
-    const query=normalize(request.query),used=new Set(request.usedNames),starts:City[]=[],contains:City[]=[];
+    const query=fold(request.query),used=new Set(request.usedNames.map(fold)),starts:City[]=[],contains:City[]=[],seen=new Set<string>();
+    for(const alias of aliases){if(!request.countries.includes(alias.country)||!alias.searchNames.some(name=>name.startsWith(query)))continue;const countryData=await loadCountry(alias.country),city=countryData.byName.get(normalize(alias.name))??countryData.byFoldedName.get(fold(alias.name));if(city&&!used.has(fold(city.name))){starts.push(city);seen.add(`${alias.country}:${fold(city.name)}`);if(starts.length===request.limit)break}}
     if(query)for(const country of request.countries){
-      const {cities}=await loadCountry(country);
-      for(const city of cities){const name=normalize(city.name);if(used.has(name))continue;if(name.startsWith(query)){starts.push(city);if(starts.length===request.limit)break}else if(contains.length<request.limit&&name.includes(query))contains.push(city)}
+      const {searchable}=await loadCountry(country);
+      for(const {city,key:name} of searchable){const id=`${country}:${name}`;if(used.has(name)||seen.has(id))continue;if(name.startsWith(query)){starts.push(city);seen.add(id);if(starts.length===request.limit)break}else if(contains.length<request.limit&&name.includes(query)){contains.push(city);seen.add(id)}}
       if(starts.length===request.limit)break;
     }
     self.postMessage({id:request.id,result:[...starts,...contains].slice(0,request.limit)});
