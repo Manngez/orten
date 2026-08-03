@@ -70,10 +70,10 @@ export default function App(){
   const [logoTaps,setLogoTaps]=useState(0),[devMenu,setDevMenu]=useState(false),[devMusicStatus,setDevMusicStatus]=useState(""),[devMusicLoading,setDevMusicLoading]=useState(false);
   const [devSearch,setDevSearch]=useState(""),[devResults,setDevResults]=useState<AppleTrack[]>([]);
   const [nordicMenu,setNordicMenu]=useState(false),[arrivalCountry,setArrivalCountry]=useState<Exclude<NordicCountry,"sweden">|null>(null);
-  const [showOrnskoldsvikEgg,setShowOrnskoldsvikEgg]=useState(false);
+  const [showOrnskoldsvikEgg,setShowOrnskoldsvikEgg]=useState(false),[showSkellefteaPlayer,setShowSkellefteaPlayer]=useState(false);
   const peerRef=useRef<Peer|null>(null),hostRef=useRef<DataConnection|null>(null),guestsRef=useRef<DataConnection[]>([]);
   const idsRef=useRef(new Map<DataConnection,string>()),stateRef=useRef(state),lobbyRef=useRef(lobby),placeCityRef=useRef(game.placeCity),countryRef=useRef(onlineCountry);
-  const currentPlayerTapsRef=useRef(0),previousUnlockedRef=useRef(state.unlockedCountries),lastSaikTurnRef=useRef(-1),lastOrnskoldsvikTurnRef=useRef(-1);
+  const currentPlayerTapsRef=useRef(0),previousUnlockedRef=useRef(state.unlockedCountries),lastSaikTurnRef=useRef(-1),lastSkellefteaVisualTurnRef=useRef(-1),lastOrnskoldsvikTurnRef=useRef(-1);
   stateRef.current=state;lobbyRef.current=lobby;placeCityRef.current=game.placeCity;countryRef.current=onlineCountry;
 
   const broadcast=useCallback((message:NetworkMessage)=>guestsRef.current.forEach(c=>c.open&&c.send(message)),[]);
@@ -145,6 +145,13 @@ export default function App(){
   },[broadcast,role,sound,state.placedCities]);
   useEffect(()=>{
     const latest=state.placedCities.at(-1);
+    if(!latest||normalizeSong(latest.city.name)!=="skelleftea"||lastSkellefteaVisualTurnRef.current===latest.turnNumber)return;
+    lastSkellefteaVisualTurnRef.current=latest.turnNumber;setShowSkellefteaPlayer(true);
+    const timer=window.setTimeout(()=>setShowSkellefteaPlayer(false),10000);
+    return()=>window.clearTimeout(timer);
+  },[state.placedCities]);
+  useEffect(()=>{
+    const latest=state.placedCities.at(-1);
     if(!latest||normalizeSong(latest.city.name)!=="ornskoldsvik"||lastOrnskoldsvikTurnRef.current===latest.turnNumber)return;
     lastOrnskoldsvikTurnRef.current=latest.turnNumber;setShowOrnskoldsvikEgg(true);
     const timer=window.setTimeout(()=>setShowOrnskoldsvikEgg(false),10000);
@@ -208,6 +215,7 @@ export default function App(){
       <div className="mobile-input"><CityInput country={state.country} unlockedCountries={state.unlockedCountries} usedCityNames={state.usedCityNames} onPlaceCity={submit} disabled={!isMyTurn||pending||!currentConnected}/></div>
     </section>
     {arrivalCountry&&<div className="country-arrival" style={{borderColor:COUNTRY_META[arrivalCountry].color,color:COUNTRY_META[arrivalCountry].color}}>{COUNTRY_META[arrivalCountry].flag} {COUNTRY_META[arrivalCountry].name.toLocaleUpperCase("sv")} HAR ANSLUTIT</div>}
+    {showSkellefteaPlayer&&<img className="skelleftea-player-egg" src="./skelleftea-player.png" alt="Tecknad Björklöven-spelare"/>}
     {showOrnskoldsvikEgg&&<div className="ornskoldsvik-egg" role="dialog" aria-label="Hemligt hockeymotiv"><button onClick={()=>setShowOrnskoldsvikEgg(false)} aria-label="Stäng">×</button><img src="./ornskoldsvik-easter-egg.webp" alt="En sur Modo-spelare går ner i en källare medan en glad Björklöven-spelare går upp"/><div><b>ÖRNSKÖLDSVIK HITTAD</b><span>Olika riktningar i hockeylivet…</span><i/></div></div>}
     {nordicMenu&&<div className="modal-backdrop nordic-secret"><section className="nordic-menu"><p>HEMLIG MENY</p><h2>Aktivera ett land</h2><button disabled={UNLOCKABLE_COUNTRIES.every(country=>state.unlockedCountries.includes(country))} onClick={activateAllCountries}><span>🌍</span><b>Alla länder</b><small>Aktivera alla</small></button>{UNLOCKABLE_COUNTRIES.map(country=>{const meta=COUNTRY_META[country],active=country===state.country||state.unlockedCountries.includes(country);return <button key={country} disabled={active} onClick={()=>activateCountry(country)}><span>{meta.flag}</span><b>{meta.name}</b><small>{active?"Aktiverat":"Lås upp"}</small></button>})}<button className="text-button" onClick={()=>setNordicMenu(false)}>Stäng</button></section></div>}
     {state.lastElimination&&state.phase==="playing"&&<button className="elimination" onClick={game.clearLastElimination}><b>LINJEKORSNING</b><span>{state.lastElimination.playerName} är utslagen</span><small>Tryck för att stänga</small></button>}
