@@ -7,3 +7,29 @@
   max-height: calc(100dvh - 28px);
   overflow-y: auto;
 }
+
+.country-draw {
+  filter: url(#countryGlow);
+  animation: countryNeonReveal 10s linear forwards;
+}
+
+@keyframes countryNeonReveal {
+  0% {
+    stroke-dashoffset: 9000;
+    stroke-opacity: 1;
+    stroke-width: 2.2px;
+    filter: url(#countryGlow);
+  }
+  85% {
+    stroke-dashoffset: 0;
+    stroke-opacity: 1;
+    stroke-width: 2.2px;
+    filter: url(#countryGlow);
+  }
+  100% {
+    stroke-dashoffset: 0;
+    stroke-opacity: 0.5;
+    stroke-width: 0.7px;
+    filter: none;
+  }
+}
