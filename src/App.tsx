@@ -6,6 +6,7 @@ import GameBoard from "./components/GameBoard";
 import CityInput from "./components/CityInput";
 import StatsPanel from "./components/StatsPanel";
 import type { Country,GameMode,GameState,NordicCountry } from "./types/game";
+import { COUNTRY_META,UNLOCKABLE_COUNTRIES } from "./data/countryCatalog";
 
 type OnlineRole="offline"|"host"|"guest";
 type OnlineStatus="idle"|"connecting"|"connected"|"error";
@@ -33,26 +34,6 @@ function beep(){
 
 type DevSong={title:string;artist:string};
 const DEV_SONGS:DevSong[]=[{title:"Dancing Queen",artist:"ABBA"},{title:"Wake Me Up",artist:"Avicii"},{title:"The Look",artist:"Roxette"},{title:"The Final Countdown",artist:"Europe"},{title:"Dancing on My Own",artist:"Robyn"}];
-const COUNTRY_META:Record<Exclude<NordicCountry,"sweden">,{flag:string;name:string;anthem:string;color:string}>={
-  finland:{flag:"🇫🇮",name:"Finland",anthem:"https://upload.wikimedia.org/wikipedia/commons/6/61/United_States_Navy_Band_-_Maamme.ogg",color:"#27d9ff"},
-  norway:{flag:"🇳🇴",name:"Norge",anthem:"https://commons.wikimedia.org/wiki/Special:Redirect/file/Norway%20(National%20Anthem).ogg",color:"#ff4268"},
-  denmark:{flag:"🇩🇰",name:"Danmark",anthem:"https://commons.wikimedia.org/wiki/Special:Redirect/file/United%20States%20Navy%20Band%20-%20Der%20er%20et%20yndigt%20land.ogg",color:"#fff"},
-  germany:{flag:"🇩🇪",name:"Tyskland",anthem:"https://commons.wikimedia.org/wiki/Special:Redirect/file/German_national_anthem_performed_by_the_United_States_Navy_Band.ogg",color:"#f4c542"},
-  netherlands:{flag:"🇳🇱",name:"Nederländerna",anthem:"https://commons.wikimedia.org/wiki/Special:Redirect/file/United_States_Navy_Band_-_Het_Wilhelmus.ogg",color:"#ff8c42"},
-  belgium:{flag:"🇧🇪",name:"Belgien",anthem:"https://commons.wikimedia.org/wiki/Special:Redirect/file/La_Brabanconne.oga",color:"#ffd447"},
-  luxembourg:{flag:"🇱🇺",name:"Luxemburg",anthem:"https://commons.wikimedia.org/wiki/Special:Redirect/file/Ons_Heemecht.ogg",color:"#70d6ff"},
-  france:{flag:"🇫🇷",name:"Frankrike",anthem:"https://commons.wikimedia.org/wiki/Special:Redirect/file/La_Marseillaise.ogg",color:"#7aa2ff"},
-  estonia:{flag:"🇪🇪",name:"Estland",anthem:"https://commons.wikimedia.org/wiki/Special:Redirect/file/United_States_Navy_Band_-_Mu_isamaa%2C_mu_%C3%B5nn_ja_r%C3%B5%C3%B5m.ogg",color:"#4895ef"},
-  latvia:{flag:"🇱🇻",name:"Lettland",anthem:"https://commons.wikimedia.org/wiki/Special:Redirect/file/Latvian_National_Anthem.ogg",color:"#b56576"},
-  lithuania:{flag:"🇱🇹",name:"Litauen",anthem:"https://commons.wikimedia.org/wiki/Special:Redirect/file/Tauti%C5%A1ka_giesm%C4%97_instrumental.oga",color:"#80b918"},
-  poland:{flag:"🇵🇱",name:"Polen",anthem:"https://commons.wikimedia.org/wiki/Special:Redirect/file/Mazurek_Dabrowskiego.ogg",color:"#ff5d8f"},
-  switzerland:{flag:"🇨🇭",name:"Schweiz",anthem:"https://commons.wikimedia.org/wiki/Special:Redirect/file/Swiss_Psalm.ogg",color:"#ff595e"},
-  austria:{flag:"🇦🇹",name:"Österrike",anthem:"https://commons.wikimedia.org/wiki/Special:Redirect/file/Land_der_Berge_Land_am_Strome_instrumental.ogg",color:"#ef476f"},
-  hungary:{flag:"🇭🇺",name:"Ungern",anthem:"https://commons.wikimedia.org/wiki/Special:Redirect/file/Hungarian_national_anthem%2C_instrumental.ogg",color:"#06d6a0"},
-  italy:{flag:"🇮🇹",name:"Italien",anthem:"https://commons.wikimedia.org/wiki/Special:Redirect/file/Italian_national_anthem.ogg",color:"#52b788"},
-  spain:{flag:"🇪🇸",name:"Spanien",anthem:"https://commons.wikimedia.org/wiki/Special:Redirect/file/Marcha_Real-Royal_March_by_US_Navy_Band.ogg",color:"#ffb703"}
-};
-const UNLOCKABLE_COUNTRIES=(Object.keys(COUNTRY_META) as Exclude<NordicCountry,"sweden">[]);
 let remoteAudioElement:HTMLAudioElement|null=null;
 async function primeRemoteAudioPlayback(){
   remoteAudioElement??=new Audio();
@@ -193,7 +174,7 @@ export default function App(){
     const result=await game.placeCity(cityName);if(result.success&&sound)beep();return result;
   };
   const tapCurrentPlayer=()=>{if(role==="guest")return;currentPlayerTapsRef.current++;if(currentPlayerTapsRef.current<10)return;currentPlayerTapsRef.current=0;setNordicMenu(true)};
-  const activateCountry=(country:Exclude<NordicCountry,"sweden">)=>{if(country===state.country||state.unlockedCountries.includes(country))return;const meta=COUNTRY_META[country];if(role==="offline")playRemotePreview(meta.anthem);else broadcast({type:"MUSIC",previewUrl:meta.anthem,title:`${meta.name} – nationalsång`});game.unlockCountry(country);setNordicMenu(false)};
+  const activateCountry=(country:Exclude<NordicCountry,"sweden">)=>{if(country===state.country||state.unlockedCountries.includes(country))return;const meta=COUNTRY_META[country];if(meta.anthem){if(role==="offline")playRemotePreview(meta.anthem);else broadcast({type:"MUSIC",previewUrl:meta.anthem,title:`${meta.name} – nationalsång`})}game.unlockCountry(country);setNordicMenu(false)};
   const activateAllCountries=()=>{game.unlockCountries(UNLOCKABLE_COUNTRIES);setNordicMenu(false)};
 
   if(state.phase==="setup"){

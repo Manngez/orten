@@ -12,6 +12,13 @@ const loaders:Record<NordicCountry,()=>Promise<CityModule>>={
   germany:()=>import("./data/germanyCities"),netherlands:()=>import("./data/netherlandsCities"),belgium:()=>import("./data/belgiumCities"),luxembourg:()=>import("./data/luxembourgCities"),france:()=>import("./data/franceCities"),
   estonia:()=>import("./data/estoniaCities"),latvia:()=>import("./data/latviaCities"),lithuania:()=>import("./data/lithuaniaCities"),poland:()=>import("./data/polandCities"),switzerland:()=>import("./data/switzerlandCities"),
   austria:()=>import("./data/austriaCities"),hungary:()=>import("./data/hungaryCities"),italy:()=>import("./data/italyCities"),spain:()=>import("./data/spainCities")
+  ,albania:()=>import("./data/albaniaCities"),andorra:()=>import("./data/andorraCities"),armenia:()=>import("./data/armeniaCities"),azerbaijan:()=>import("./data/azerbaijanCities"),belarus:()=>import("./data/belarusCities")
+  ,bosniaHerzegovina:()=>import("./data/bosniaHerzegovinaCities"),bulgaria:()=>import("./data/bulgariaCities"),croatia:()=>import("./data/croatiaCities"),cyprus:()=>import("./data/cyprusCities"),czechia:()=>import("./data/czechiaCities")
+  ,georgia:()=>import("./data/georgiaCities"),greece:()=>import("./data/greeceCities"),iceland:()=>import("./data/icelandCities"),ireland:()=>import("./data/irelandCities"),kosovo:()=>import("./data/kosovoCities")
+  ,liechtenstein:()=>import("./data/liechtensteinCities"),malta:()=>import("./data/maltaCities"),moldova:()=>import("./data/moldovaCities"),monaco:()=>import("./data/monacoCities"),montenegro:()=>import("./data/montenegroCities")
+  ,northMacedonia:()=>import("./data/northMacedoniaCities"),portugal:()=>import("./data/portugalCities"),romania:()=>import("./data/romaniaCities"),russia:()=>import("./data/russiaCities"),sanMarino:()=>import("./data/sanMarinoCities")
+  ,serbia:()=>import("./data/serbiaCities"),slovakia:()=>import("./data/slovakiaCities"),slovenia:()=>import("./data/sloveniaCities"),turkey:()=>import("./data/turkeyCities"),ukraine:()=>import("./data/ukraineCities")
+  ,unitedKingdom:()=>import("./data/unitedKingdomCities"),vaticanCity:()=>import("./data/vaticanCityCities")
 };
 const loaded=new Map<NordicCountry,Promise<LoadedCountry>>();
 const normalize=(value:string)=>value.normalize("NFKC").toLocaleLowerCase("sv-SE").trim();

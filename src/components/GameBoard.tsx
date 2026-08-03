@@ -1,13 +1,13 @@
 import { useRef,useState } from "react";
 import type { GameState,NordicCountry } from "../types/game";
 import { EUROPE_OUTLINES,EUROPE_VIEWBOX } from "../data/europeOutlines";
+import { COUNTRY_META } from "../data/countryCatalog";
 import { PLAYER_COLORS } from "./GameSetup";
 
 const MAX_ZOOM=18;
 
-const countryStyle:Record<NordicCountry,{stroke:string;fill:string}>={
-  sweden:{stroke:"#3b7f78",fill:"#123733"},norway:{stroke:"#ff4268",fill:"#351b2a"},finland:{stroke:"#27d9ff",fill:"#0b2b35"},denmark:{stroke:"#fff",fill:"#353946"},germany:{stroke:"#f4c542",fill:"#2d2417"},netherlands:{stroke:"#ff8c42",fill:"#3a2417"},belgium:{stroke:"#ffd447",fill:"#332d16"},luxembourg:{stroke:"#70d6ff",fill:"#17313a"},france:{stroke:"#7aa2ff",fill:"#19243e"},estonia:{stroke:"#4895ef",fill:"#152943"},latvia:{stroke:"#b56576",fill:"#351d25"},lithuania:{stroke:"#80b918",fill:"#263213"},poland:{stroke:"#ff5d8f",fill:"#381b27"},switzerland:{stroke:"#ff595e",fill:"#371a1b"},austria:{stroke:"#ef476f",fill:"#351923"},hungary:{stroke:"#06d6a0",fill:"#12352d"},italy:{stroke:"#52b788",fill:"#15332a"},spain:{stroke:"#ffb703",fill:"#382c12"}
-};
+const darkFill=(hex:string)=>{const value=hex.replace("#","");if(value.length!==6)return"#172c32";const channel=(start:number)=>Math.round(Number.parseInt(value.slice(start,start+2),16)*.18+12).toString(16).padStart(2,"0");return`#${channel(0)}${channel(2)}${channel(4)}`};
+const countryStyle=(country:NordicCountry)=>({stroke:COUNTRY_META[country].color,fill:darkFill(COUNTRY_META[country].color)});
 
 const clientToSvgPoint=(svg:SVGSVGElement,clientX:number,clientY:number)=>{
   const matrix=svg.getScreenCTM();
@@ -51,7 +51,7 @@ export default function GameBoard({state}:{state:GameState}){
     <defs><filter id="lineGlow"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><filter id="countryGlow"><feGaussianBlur stdDeviation="5" result="glow"/><feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge></filter><pattern id="grid" width="26" height="26" patternUnits="userSpaceOnUse"><path d="M26 0H0V26" fill="none" stroke="#61b7b0" strokeOpacity=".08" strokeWidth=".6"/></pattern></defs>
     <rect width="620" height="1160" fill="#071b24"/><rect width="620" height="1160" fill="url(#grid)"/>
     <g transform={`translate(${view.x} ${view.y}) scale(${view.scale})`}>
-      {countries.map(country=>{const unlocked=country!==state.country,style=countryStyle[country],outline=EUROPE_OUTLINES[country];return <path key={country} d={outline.path} fill={style.fill} fillRule="evenodd" stroke={style.stroke} strokeWidth={unlocked?2.2:1.5} vectorEffect="non-scaling-stroke" className={unlocked?`country-draw ${country}`:""}/>})}
+      {countries.map(country=>{const unlocked=country!==state.country,style=countryStyle(country),outline=EUROPE_OUTLINES[country];return outline?<path key={country} d={outline.path} fill={style.fill} fillRule="evenodd" stroke={style.stroke} strokeWidth={unlocked?2.2:1.5} vectorEffect="non-scaling-stroke" className={unlocked?`country-draw ${country}`:""}/>:null})}
       {state.lines.map((s,i)=>{const crossing=state.crossingLines?.includes(s),latest=i===state.lines.length-1;return <line key={i} x1={s.from.x} y1={s.from.y} x2={s.to.x} y2={s.to.y} stroke={crossing?"#fb4f5e":PLAYER_COLORS[s.playerIndex]} strokeOpacity={latest?1:.58} strokeWidth={crossing?4:latest?3:1.8} vectorEffect="non-scaling-stroke" strokeLinecap="round" filter={latest?"url(#lineGlow)":undefined} className={latest?"draw-line":""}/>})}
       {state.placedCities.map((p,i)=>{const latest=i===state.placedCities.length-1,inv=1/view.scale,labelWidth=Math.min(88,p.city.name.length*6+18);return <g key={i} className={latest?"latest-dot":""}><circle cx={p.point.x} cy={p.point.y} r={(latest?8:5)*inv} fill={PLAYER_COLORS[p.playerIndex]} fillOpacity=".18"/><circle cx={p.point.x} cy={p.point.y} r={(latest?4.5:3.2)*inv} fill={PLAYER_COLORS[p.playerIndex]} stroke="#fff" strokeWidth="1.2" vectorEffect="non-scaling-stroke"/>{latest&&<><rect x={p.point.x+8*inv} y={p.point.y-12*inv} width={labelWidth*inv} height={19*inv} rx={5*inv} fill="#ecfeff"/><text x={p.point.x+16*inv} y={p.point.y+1*inv} fill="#09232a" fontSize={8*inv} fontWeight="800">{p.city.name}</text></>}</g>})}
     </g>
