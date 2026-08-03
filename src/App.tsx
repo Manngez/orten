@@ -42,6 +42,14 @@ async function primeRemoteAudioPlayback(){
   try{await remoteAudioElement.play();remoteAudioElement.pause();remoteAudioElement.currentTime=0}catch{}finally{remoteAudioElement.muted=false}
 }
 function normalizeSong(value:string){return value.toLocaleLowerCase("sv").normalize("NFD").replace(/\p{Diacritic}/gu,"").replace(/[^a-z0-9]/g,"")}
+type CityEasterEgg={city:string;image:string;alt:string};
+const CITY_EASTER_EGGS:Record<string,CityEasterEgg>={
+  gavle:{city:"Gävle",image:"gavle.webp",alt:"Gävlebocken bredvid en enorm brandsläckare"},kiruna:{city:"Kiruna",image:"kiruna.webp",alt:"Kiruna kyrka promenerar med en flyttkartong"},mora:{city:"Mora",image:"mora.webp",alt:"Vasaloppsåkare dricker blåbärssoppa ur en jättelik hink"},malmo:{city:"Malmö",image:"malmo.webp",alt:"Zlatan poserar med Turning Torso"},
+  umea:{city:"Umeå",image:"umea.webp",alt:"Två björkar i rivaliserande hockeytröjor"},goteborg:{city:"Göteborg",image:"goteborg.webp",alt:"Fiskare drar upp en blå spårvagn ur vattnet"},stockholm:{city:"Stockholm",image:"stockholm.webp",alt:"Kungen åker tunnelbana med kronan över öronen"},falun:{city:"Falun",image:"falun.webp",alt:"En dalahäst deltar i en hästkapplöpning"},
+  visby:{city:"Visby",image:"visby.webp",alt:"Medeltida riddare försöker betala parkering med ett guldmynt"},orebro:{city:"Örebro",image:"orebro.webp",alt:"Svampen fungerar som ett enormt paraply"},jukkasjarvi:{city:"Jukkasjärvi",image:"jukkasjarvi.webp",alt:"Hotellgäst värmer ett ishotell med hårtork"},are:{city:"Åre",image:"are.webp",alt:"Skidåkare balanserar en överfull afterski-bricka"},
+  bastad:{city:"Båstad",image:"bastad.webp",alt:"Tennisdomare sitter i ett orimligt högt domartorn"},vasteras:{city:"Västerås",image:"vasteras.webp",alt:"En jättelik gurka poserar som superhjälte"},norrkoping:{city:"Norrköping",image:"norrkoping.webp",alt:"Fabriksskorstenar blåser färgglada såpbubblor"},haparanda:{city:"Haparanda",image:"haparanda.webp",alt:"Resenär står mellan Sverige och Finland med två klockor"},
+  ystad:{city:"Ystad",image:"ystad.webp",alt:"Detektiv undersöker mysteriet med den försvunna korven"},arboga:{city:"Arboga",image:"arboga.webp",alt:"Medeltida munk skriver protokoll på en modern dator"},uppsala:{city:"Uppsala",image:"uppsala.webp",alt:"Carl von Linné försöker sortera påhittade blommor"},karlstad:{city:"Karlstad",image:"karlstad.webp",alt:"En leende sol håller paraply över en person i ösregn"}
+};
 type AppleTrack={trackId?:number;trackName?:string;artistName?:string;previewUrl?:string;artworkUrl60?:string;trackViewUrl?:string};
 function searchAppleWithJsonp(query:string):Promise<AppleTrack[]>{
   return new Promise((resolve,reject)=>{const callback=`ortenApple${Date.now()}${Math.random().toString(36).slice(2)}`,script=document.createElement("script"),timer=window.setTimeout(()=>finish(null),8000),target=window as unknown as Record<string,unknown>;function finish(results:AppleTrack[]|null){window.clearTimeout(timer);script.remove();delete target[callback];results?resolve(results):reject(new Error("Apple-sökningen svarade inte"))}target[callback]=(data:{results?:AppleTrack[]})=>finish(data.results??[]);script.onerror=()=>finish(null);script.src=`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=12&country=SE&callback=${callback}`;document.head.appendChild(script)});
@@ -71,9 +79,10 @@ export default function App(){
   const [devSearch,setDevSearch]=useState(""),[devResults,setDevResults]=useState<AppleTrack[]>([]);
   const [nordicMenu,setNordicMenu]=useState(false),[arrivalCountry,setArrivalCountry]=useState<Exclude<NordicCountry,"sweden">|null>(null);
   const [showOrnskoldsvikEgg,setShowOrnskoldsvikEgg]=useState(false),[showSkellefteaPlayer,setShowSkellefteaPlayer]=useState(false),[showStenmark,setShowStenmark]=useState(false);
+  const [cityEasterEgg,setCityEasterEgg]=useState<CityEasterEgg|null>(null);
   const peerRef=useRef<Peer|null>(null),hostRef=useRef<DataConnection|null>(null),guestsRef=useRef<DataConnection[]>([]);
   const idsRef=useRef(new Map<DataConnection,string>()),stateRef=useRef(state),lobbyRef=useRef(lobby),placeCityRef=useRef(game.placeCity),countryRef=useRef(onlineCountry);
-  const currentPlayerTapsRef=useRef(0),previousUnlockedRef=useRef(state.unlockedCountries),lastSaikTurnRef=useRef(-1),lastSkellefteaVisualTurnRef=useRef(-1),lastStenmarkTurnRef=useRef(-1),lastOrnskoldsvikTurnRef=useRef(-1);
+  const currentPlayerTapsRef=useRef(0),previousUnlockedRef=useRef(state.unlockedCountries),lastSaikTurnRef=useRef(-1),lastSkellefteaVisualTurnRef=useRef(-1),lastStenmarkTurnRef=useRef(-1),lastOrnskoldsvikTurnRef=useRef(-1),lastCityEggTurnRef=useRef(-1);
   stateRef.current=state;lobbyRef.current=lobby;placeCityRef.current=game.placeCity;countryRef.current=onlineCountry;
 
   const broadcast=useCallback((message:NetworkMessage)=>guestsRef.current.forEach(c=>c.open&&c.send(message)),[]);
@@ -165,6 +174,13 @@ export default function App(){
     return()=>window.clearTimeout(timer);
   },[state.placedCities]);
   useEffect(()=>{
+    const latest=state.placedCities.at(-1),egg=latest?CITY_EASTER_EGGS[normalizeSong(latest.city.name)]:null;
+    if(!latest||!egg||lastCityEggTurnRef.current===latest.turnNumber)return;
+    lastCityEggTurnRef.current=latest.turnNumber;setCityEasterEgg(egg);
+    const timer=window.setTimeout(()=>setCityEasterEgg(null),10000);
+    return()=>window.clearTimeout(timer);
+  },[state.placedCities]);
+  useEffect(()=>{
     if(state.phase==="setup")return;
     window.scrollTo(0,0);
     document.documentElement.scrollTop=0;
@@ -224,6 +240,7 @@ export default function App(){
     {arrivalCountry&&<div className="country-arrival" style={{borderColor:COUNTRY_META[arrivalCountry].color,color:COUNTRY_META[arrivalCountry].color}}>{COUNTRY_META[arrivalCountry].flag} {COUNTRY_META[arrivalCountry].name.toLocaleUpperCase("sv")} HAR ANSLUTIT</div>}
     {showSkellefteaPlayer&&<img className="skelleftea-player-egg" src="./skelleftea-player.png" alt="Tecknad Skellefteå AIK-spelare"/>}
     {showStenmark&&<img className="tarnaby-stenmark-egg" src="./tarnaby-stenmark.png" alt="Tecknad Ingemar Stenmark i en slalomsväng"/>}
+    {cityEasterEgg&&<div className="city-easter-egg" role="dialog" aria-label={`Hemligt motiv för ${cityEasterEgg.city}`}><button onClick={()=>setCityEasterEgg(null)} aria-label="Stäng">×</button><img src={`./easter-eggs/${cityEasterEgg.image}`} alt={cityEasterEgg.alt}/></div>}
     {showOrnskoldsvikEgg&&<div className="ornskoldsvik-egg" role="dialog" aria-label="Hemligt hockeymotiv"><button onClick={()=>setShowOrnskoldsvikEgg(false)} aria-label="Stäng">×</button><img src="./ornskoldsvik-easter-egg.webp" alt="En sur Modo-spelare går ner i en källare medan en glad Björklöven-spelare går upp"/><div><b>ÖRNSKÖLDSVIK HITTAD</b><span>Olika riktningar i hockeylivet…</span><i/></div></div>}
     {nordicMenu&&<div className="modal-backdrop nordic-secret"><section className="nordic-menu"><p>HEMLIG MENY</p><h2>Aktivera ett land</h2><button disabled={UNLOCKABLE_COUNTRIES.every(country=>state.unlockedCountries.includes(country))} onClick={activateAllCountries}><span>🌍</span><b>Alla länder</b><small>Aktivera alla</small></button>{UNLOCKABLE_COUNTRIES.map(country=>{const meta=COUNTRY_META[country],active=country===state.country||state.unlockedCountries.includes(country);return <button key={country} disabled={active} onClick={()=>activateCountry(country)}><span>{meta.flag}</span><b>{meta.name}</b><small>{active?"Aktiverat":"Lås upp"}</small></button>})}<button className="text-button" onClick={()=>setNordicMenu(false)}>Stäng</button></section></div>}
     {state.lastElimination&&state.phase==="playing"&&<button className="elimination" onClick={game.clearLastElimination}><b>LINJEKORSNING</b><span>{state.lastElimination.playerName} är utslagen</span><small>Tryck för att stänga</small></button>}
