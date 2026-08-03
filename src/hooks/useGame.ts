@@ -16,10 +16,11 @@ export function useGame(){
     if(state.phase!=="playing")return{success:false,message:"Spelet är inte aktivt."};
     const key=raw.trim().toLocaleLowerCase("sv-SE"),match=await findCity(raw,activeCountries(state.country,state.unlockedCountries)),city=match?.city,cityCountry=match?.country;
     if(!city||!cityCountry)return{success:false,message:`"${raw}" finns inte i ortslistan.`};
-    if(state.usedCityNames.has(key))return{success:false,message:`${city.name} har redan använts.`};
+    const canonicalKey=city.name.trim().toLocaleLowerCase("sv-SE");
+    if(state.usedCityNames.has(key)||state.usedCityNames.has(canonicalKey))return{success:false,message:`${city.name} har redan använts.`};
     setHistory(h=>[...h,state]);
     const point=project(city.lat,city.lng,cityCountry),playerIndex=state.currentPlayerIndex,previous=state.placedCities.at(-1),points=previous?Math.max(10,Math.round(distance(previous.point,point)*2)):50;
-    const placed:PlacedCity={city,point,playerIndex,turnNumber:state.placedCities.length+1,points},segment:LineSegment|null=previous?{from:previous.point,to:point,playerIndex,turnNumber:placed.turnNumber}:null,crossing=segment?findCrossing(segment,state.lines):null,used=new Set(state.usedCityNames);used.add(key);
+    const placed:PlacedCity={city,point,playerIndex,turnNumber:state.placedCities.length+1,points},segment:LineSegment|null=previous?{from:previous.point,to:point,playerIndex,turnNumber:placed.turnNumber}:null,crossing=segment?findCrossing(segment,state.lines):null,used=new Set(state.usedCityNames);used.add(canonicalKey);
     const scores=[...state.scores];scores[playerIndex]+=points;let eliminated=[...state.eliminated],eliminationOrder=[...state.eliminationOrder];if(crossing){eliminated[playerIndex]=true;scores[playerIndex]=Math.max(0,scores[playerIndex]-100);eliminationOrder.push({playerName:state.players[playerIndex],cityName:city.name})}
     const placedCities=[...state.placedCities,placed],lines=segment?[...state.lines,segment]:state.lines,active=eliminated.filter(v=>!v).length;
     if(active<=1){const winner=state.players[eliminated.findIndex(v=>!v)]||state.players[playerIndex],counts=state.players.map((_,i)=>placedCities.filter(p=>p.playerIndex===i).length);updateStatsAfterGame(state.players,winner,eliminationOrder,placedCities.length,state.mode,scores,counts);setState({...state,phase:"gameover",placedCities,lines,usedCityNames:used,eliminated,eliminationOrder,lastElimination:crossing?eliminationOrder.at(-1)!:null,crossingLines:crossing,winner,scores})}else setState({...state,placedCities,lines,usedCityNames:used,eliminated,eliminationOrder,currentPlayerIndex:nextActive(eliminated,playerIndex),lastElimination:crossing?eliminationOrder.at(-1)!:null,crossingLines:crossing,scores});
