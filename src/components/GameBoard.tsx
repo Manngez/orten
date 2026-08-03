@@ -10,9 +10,21 @@ const darkFill=(hex:string)=>{const value=hex.replace("#","");if(value.length!==
 const countryStyle=(country:NordicCountry)=>({stroke:COUNTRY_META[country].color,fill:darkFill(COUNTRY_META[country].color)});
 
 type OutlinePoint={x:number;y:number};
-const FAST_OUTLINES=new Map<NordicCountry,string>();
-const fastOutline=(country:NordicCountry)=>{
-  const cached=FAST_OUTLINES.get(country);if(cached)return cached;
+const FAST_OUTLINES=new Map<string,string>();
+const pointDistanceToSegment=(point:OutlinePoint,start:OutlinePoint,end:OutlinePoint)=>{
+  const dx=end.x-start.x,dy=end.y-start.y;
+  if(dx===0&&dy===0)return Math.hypot(point.x-start.x,point.y-start.y);
+  const t=Math.max(0,Math.min(1,((point.x-start.x)*dx+(point.y-start.y)*dy)/(dx*dx+dy*dy)));
+  return Math.hypot(point.x-(start.x+t*dx),point.y-(start.y+t*dy));
+};
+const simplifyPoints=(points:OutlinePoint[],tolerance:number):OutlinePoint[]=>{
+  if(points.length<=2)return points;
+  const keep=new Uint8Array(points.length),stack:Array<[number,number]>=[[0,points.length-1]];keep[0]=1;keep[points.length-1]=1;
+  while(stack.length){const[start,end]=stack.pop()!;let furthest=tolerance,index=-1;for(let i=start+1;i<end;i++){const distance=pointDistanceToSegment(points[i],points[start],points[end]);if(distance>furthest){furthest=distance;index=i}}if(index>=0){keep[index]=1;stack.push([start,index],[index,end])}}
+  return points.filter((_,index)=>keep[index]===1);
+};
+const fastOutline=(country:NordicCountry,compact:boolean)=>{
+  const cacheKey=`${country}:${compact?"compact":"detail"}`,cached=FAST_OUTLINES.get(cacheKey);if(cached)return cached;
   const source=EUROPE_OUTLINES[country]?.path??"";
   const simplified=(source.match(/M[^M]+/g)??[]).map(part=>{
     const values=(part.match(/-?\d+(?:\.\d+)?/g)??[]).map(Number),points:OutlinePoint[]=[];
@@ -20,14 +32,18 @@ const fastOutline=(country:NordicCountry)=>{
     if(points.length<3)return"";
     const xs=points.map(point=>point.x),ys=points.map(point=>point.y);
     if(Math.max(...xs)<0||Math.min(...xs)>1200||Math.max(...ys)<0||Math.min(...ys)>900)return"";
-    const closed=/Z\s*$/.test(part),kept=[points[0]];
+    const width=Math.max(...xs)-Math.min(...xs),height=Math.max(...ys)-Math.min(...ys);
+    if(compact&&width<.7&&height<.7)return"";
+    const closed=/Z\s*$/.test(part),radial=[points[0]],minDistance=compact?.7:.3;
     for(let i=1;i<points.length;i++){
-      const point=points[i],last=kept.at(-1)!,dx=point.x-last.x,dy=point.y-last.y;
-      if(i===points.length-1||dx*dx+dy*dy>=.0625)kept.push(point);
+      const point=points[i],last=radial.at(-1)!,dx=point.x-last.x,dy=point.y-last.y;
+      if(i===points.length-1||dx*dx+dy*dy>=minDistance*minDistance)radial.push(point);
     }
+    const kept=simplifyPoints(radial,compact?.65:.28);
+    if(kept.length<3)return"";
     return `M${kept[0].x} ${kept[0].y} ${kept.slice(1).map(point=>`L${point.x} ${point.y}`).join(" ")}${closed?" Z":""}`;
   }).filter(Boolean).join(" ");
-  FAST_OUTLINES.set(country,simplified);return simplified;
+  FAST_OUTLINES.set(cacheKey,simplified);return simplified;
 };
 
 const clientToSvgPoint=(svg:SVGSVGElement,clientX:number,clientY:number)=>{
@@ -40,9 +56,10 @@ const clientToSvgPoint=(svg:SVGSVGElement,clientX:number,clientY:number)=>{
 export default function GameBoard({state}:{state:GameState}){
   const [view,setView]=useState({x:0,y:0,scale:1}),pointers=useRef(new Map<number,{x:number;y:number}>()),gesture=useRef<{distance:number;center:{x:number;y:number};view:{x:number;y:number;scale:number}}|null>(null),frame=useRef<number|null>(null),queuedView=useRef<typeof view|null>(null);
   const countries=[state.country,...state.unlockedCountries.filter(country=>country!==state.country)] as NordicCountry[];
+  const compactMap=countries.length>10;
   const newestUnlocked=state.unlockedCountries.at(-1);
   const scheduleView=(next:typeof view)=>{queuedView.current=next;if(frame.current!==null)return;frame.current=requestAnimationFrame(()=>{frame.current=null;if(queuedView.current)setView(queuedView.current)})};
-  const countryLayer=useMemo(()=>countries.map(country=>{const unlocked=country!==state.country,animate=unlocked&&country===newestUnlocked,style=countryStyle(country),outline=fastOutline(country);return outline?<path key={country} d={outline} fill={style.fill} fillRule="evenodd" stroke={style.stroke} strokeWidth={unlocked?.7:1.5} strokeOpacity={unlocked?.5:1} vectorEffect="non-scaling-stroke" className={animate?`country-draw ${country}`:""}/>:null}),[state.country,state.unlockedCountries,newestUnlocked]);
+  const countryLayer=useMemo(()=>countries.map(country=>{const unlocked=country!==state.country,animate=!compactMap&&unlocked&&country===newestUnlocked,style=countryStyle(country),outline=fastOutline(country,compactMap);return outline?<path key={country} d={outline} fill={style.fill} fillRule="evenodd" stroke={style.stroke} strokeWidth={unlocked?.7:1.5} strokeOpacity={unlocked?.5:1} vectorEffect="non-scaling-stroke" pointerEvents="none" className={animate?`country-draw ${country}`:""}/>:null}),[state.country,state.unlockedCountries,newestUnlocked,compactMap]);
   const lineLayer=useMemo(()=>state.lines.map((s,i)=>{const crossing=state.crossingLines?.includes(s),latest=i===state.lines.length-1;return <line key={i} x1={s.from.x} y1={s.from.y} x2={s.to.x} y2={s.to.y} stroke={crossing?"#fb4f5e":PLAYER_COLORS[s.playerIndex]} strokeOpacity={latest?1:.58} strokeWidth={crossing?4:latest?3:1.8} vectorEffect="non-scaling-stroke" strokeLinecap="round" filter={latest?"url(#lineGlow)":undefined} className={latest?"draw-line":""}/>}),[state.lines,state.crossingLines]);
   const cityLayer=useMemo(()=>state.placedCities.map((p,i)=>{const latest=i===state.placedCities.length-1,inv=1/view.scale,labelWidth=Math.min(88,p.city.name.length*6+18);return <g key={i} className={latest?"latest-dot":""}><circle cx={p.point.x} cy={p.point.y} r={(latest?8:5)*inv} fill={PLAYER_COLORS[p.playerIndex]} fillOpacity=".18"/><circle cx={p.point.x} cy={p.point.y} r={(latest?4.5:3.2)*inv} fill={PLAYER_COLORS[p.playerIndex]} stroke="#fff" strokeWidth="1.2" vectorEffect="non-scaling-stroke"/>{latest&&<><rect x={p.point.x+8*inv} y={p.point.y-12*inv} width={labelWidth*inv} height={19*inv} rx={5*inv} fill="#ecfeff"/><text x={p.point.x+16*inv} y={p.point.y+1*inv} fill="#09232a" fontSize={8*inv} fontWeight="800">{p.city.name}</text></>}</g>}),[state.placedCities,view.scale]);
   const onPointerDown=(event:React.PointerEvent<SVGSVGElement>)=>{
@@ -77,7 +94,7 @@ export default function GameBoard({state}:{state:GameState}){
     <defs><filter id="lineGlow"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><filter id="countryGlow"><feGaussianBlur stdDeviation="5" result="glow"/><feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge></filter><pattern id="grid" width="26" height="26" patternUnits="userSpaceOnUse"><path d="M26 0H0V26" fill="none" stroke="#61b7b0" strokeOpacity=".08" strokeWidth=".6"/></pattern></defs>
     <rect width="620" height="1160" fill="#071b24"/><rect width="620" height="1160" fill="url(#grid)"/>
     <g transform={`translate(${view.x} ${view.y}) scale(${view.scale})`}>
-      {countryLayer}
+      <g className="country-layer">{countryLayer}</g>
       {lineLayer}
       {cityLayer}
     </g>
