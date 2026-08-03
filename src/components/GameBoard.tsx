@@ -53,6 +53,14 @@ const clientToSvgPoint=(svg:SVGSVGElement,clientX:number,clientY:number)=>{
   return{x:(clientX-rect.left)/rect.width*620,y:(clientY-rect.top)/rect.height*1160};
 };
 
+const crossingPoint=(lines:GameState["crossingLines"])=>{
+  if(!lines)return null;
+  const[a,b]=lines,x1=a.from.x,y1=a.from.y,x2=a.to.x,y2=a.to.y,x3=b.from.x,y3=b.from.y,x4=b.to.x,y4=b.to.y;
+  const denominator=(x1-x2)*(y3-y4)-(y1-y2)*(x3-x4);
+  if(Math.abs(denominator)<1e-9)return null;
+  return{x:((x1*y2-y1*x2)*(x3-x4)-(x1-x2)*(x3*y4-y3*x4))/denominator,y:((x1*y2-y1*x2)*(y3-y4)-(y1-y2)*(x3*y4-y3*x4))/denominator};
+};
+
 export default function GameBoard({state}:{state:GameState}){
   const [view,setView]=useState({x:0,y:0,scale:1}),pointers=useRef(new Map<number,{x:number;y:number}>()),gesture=useRef<{distance:number;center:{x:number;y:number};view:{x:number;y:number;scale:number}}|null>(null),frame=useRef<number|null>(null),queuedView=useRef<typeof view|null>(null);
   const countries=[state.country,...state.unlockedCountries.filter(country=>country!==state.country)] as NordicCountry[];
@@ -60,7 +68,8 @@ export default function GameBoard({state}:{state:GameState}){
   const newestUnlocked=state.unlockedCountries.at(-1);
   const scheduleView=(next:typeof view)=>{queuedView.current=next;if(frame.current!==null)return;frame.current=requestAnimationFrame(()=>{frame.current=null;if(queuedView.current)setView(queuedView.current)})};
   const countryLayer=useMemo(()=>countries.map(country=>{const unlocked=country!==state.country,animate=!compactMap&&unlocked&&country===newestUnlocked,style=countryStyle(country),outline=fastOutline(country,compactMap);return outline?<path key={country} d={outline} fill={style.fill} fillRule="evenodd" stroke={style.stroke} strokeWidth={unlocked?.7:1.5} strokeOpacity={unlocked?.5:1} vectorEffect="non-scaling-stroke" pointerEvents="none" className={animate?`country-draw ${country}`:""}/>:null}),[state.country,state.unlockedCountries,newestUnlocked,compactMap]);
-  const lineLayer=useMemo(()=>state.lines.map((s,i)=>{const crossing=state.crossingLines?.includes(s),latest=i===state.lines.length-1;return <line key={i} x1={s.from.x} y1={s.from.y} x2={s.to.x} y2={s.to.y} stroke={crossing?"#fb4f5e":PLAYER_COLORS[s.playerIndex]} strokeOpacity={latest?1:.58} strokeWidth={crossing?4:latest?3:1.8} vectorEffect="non-scaling-stroke" strokeLinecap="round" filter={latest?"url(#lineGlow)":undefined} className={latest?"draw-line":""}/>}),[state.lines,state.crossingLines]);
+  const lineLayer=useMemo(()=>state.lines.map((s,i)=>{const crossing=state.crossingLines?.includes(s),latest=i===state.lines.length-1;return <line key={i} x1={s.from.x} y1={s.from.y} x2={s.to.x} y2={s.to.y} stroke={crossing?"#ff3347":PLAYER_COLORS[s.playerIndex]} strokeOpacity={crossing||latest?1:.58} strokeWidth={crossing?5:latest?3:1.8} vectorEffect="non-scaling-stroke" strokeLinecap="round" filter={crossing||latest?"url(#lineGlow)":undefined} className={`${latest?"draw-line ":""}${crossing?"crossing-line":""}`}/>}),[state.lines,state.crossingLines]);
+  const intersection=useMemo(()=>crossingPoint(state.crossingLines),[state.crossingLines]);
   const cityLayer=useMemo(()=>state.placedCities.map((p,i)=>{const latest=i===state.placedCities.length-1,inv=1/view.scale,labelWidth=Math.min(88,p.city.name.length*6+18);return <g key={i} className={latest?"latest-dot":""}><circle cx={p.point.x} cy={p.point.y} r={(latest?8:5)*inv} fill={PLAYER_COLORS[p.playerIndex]} fillOpacity=".18"/><circle cx={p.point.x} cy={p.point.y} r={(latest?4.5:3.2)*inv} fill={PLAYER_COLORS[p.playerIndex]} stroke="#fff" strokeWidth="1.2" vectorEffect="non-scaling-stroke"/>{latest&&<><rect x={p.point.x+8*inv} y={p.point.y-12*inv} width={labelWidth*inv} height={19*inv} rx={5*inv} fill="#ecfeff"/><text x={p.point.x+16*inv} y={p.point.y+1*inv} fill="#09232a" fontSize={8*inv} fontWeight="800">{p.city.name}</text></>}</g>}),[state.placedCities,view.scale]);
   const onPointerDown=(event:React.PointerEvent<SVGSVGElement>)=>{
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -96,6 +105,7 @@ export default function GameBoard({state}:{state:GameState}){
     <g transform={`translate(${view.x} ${view.y}) scale(${view.scale})`}>
       <g className="country-layer">{countryLayer}</g>
       {lineLayer}
+      {intersection&&<g className="crossing-point" transform={`translate(${intersection.x} ${intersection.y})`}><circle r={12/view.scale} fill="#ff3347" fillOpacity=".3"/><circle r={6/view.scale} fill="#ff3347" stroke="#fff" strokeWidth="2" vectorEffect="non-scaling-stroke"/></g>}
       {cityLayer}
     </g>
   </svg><div className="map-tools"><button onClick={()=>setView({x:0,y:0,scale:1})} aria-label="Återställ kartan">⌂</button><span>Nyp eller dra kartan</span></div></div>

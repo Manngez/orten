@@ -97,3 +97,15 @@
   .setup-shell .online-primary{height:47px;margin-top:9px;padding:10px 14px;font-size:12px}
   .setup-shell .text-button{margin-top:14px;font-size:11px}
 }
+
+/* Make the game-ending crossing unmistakable before showing the result. */
+.crossing-line,.crossing-point{animation:crossingPulse 1s ease-in-out infinite}
+.crossing-reveal{position:fixed;z-index:25;left:50%;bottom:24px;transform:translateX(-50%);width:min(430px,calc(100% - 28px));background:#f4f6ee;color:#153332;border-left:5px solid #ff3347;padding:16px 18px;box-shadow:0 18px 50px #000b;display:grid;grid-template-columns:1fr auto;gap:4px 16px;align-items:center}
+.crossing-reveal b{font-size:10px;letter-spacing:.16em;color:#df3444}
+.crossing-reveal span{font:17px Georgia;grid-column:1}
+.crossing-reveal button,.show-crossing{border:0;background:#12383a;color:#fff;padding:11px 14px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+.crossing-reveal button{grid-column:2;grid-row:1/3}
+.show-crossing{width:100%;margin-top:16px;background:#dceae7;color:#204746}
+.result-card .show-crossing+.primary{margin-top:10px}
+@keyframes crossingPulse{50%{opacity:.48}}
+@media(max-width:760px){.crossing-reveal{bottom:14px;grid-template-columns:1fr}.crossing-reveal button{grid-column:1;grid-row:auto;margin-top:8px}}
