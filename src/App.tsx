@@ -81,11 +81,11 @@ export default function App(){
   const [logoTaps,setLogoTaps]=useState(0),[devMenu,setDevMenu]=useState(false),[devMusicStatus,setDevMusicStatus]=useState(""),[devMusicLoading,setDevMusicLoading]=useState(false);
   const [devSearch,setDevSearch]=useState(""),[devResults,setDevResults]=useState<AppleTrack[]>([]);
   const [nordicMenu,setNordicMenu]=useState(false),[arrivalCountry,setArrivalCountry]=useState<Exclude<NordicCountry,"sweden">|null>(null);
-  const [showOrnskoldsvikEgg,setShowOrnskoldsvikEgg]=useState(false),[showSkellefteaPlayer,setShowSkellefteaPlayer]=useState(false),[showStenmark,setShowStenmark]=useState(false);
+  const [showOrnskoldsvikEgg,setShowOrnskoldsvikEgg]=useState(false),[showSkellefteaPlayer,setShowSkellefteaPlayer]=useState(false),[showStenmark,setShowStenmark]=useState(false),[showFrolundaPlayer,setShowFrolundaPlayer]=useState(false),[showHv71Player,setShowHv71Player]=useState(false);
   const [cityEasterEgg,setCityEasterEgg]=useState<CityEasterEgg|null>(null);
   const peerRef=useRef<Peer|null>(null),hostRef=useRef<DataConnection|null>(null),guestsRef=useRef<DataConnection[]>([]);
   const idsRef=useRef(new Map<DataConnection,string>()),stateRef=useRef(state),lobbyRef=useRef(lobby),placeCityRef=useRef(game.placeCity),countryRef=useRef(onlineCountry);
-  const currentPlayerTapsRef=useRef(0),previousUnlockedRef=useRef(state.unlockedCountries),lastSaikTurnRef=useRef(-1),lastSkellefteaVisualTurnRef=useRef(-1),lastStenmarkTurnRef=useRef(-1),lastOrnskoldsvikTurnRef=useRef(-1),lastCityEggTurnRef=useRef(-1);
+  const currentPlayerTapsRef=useRef(0),previousUnlockedRef=useRef(state.unlockedCountries),lastSaikTurnRef=useRef(-1),lastSkellefteaVisualTurnRef=useRef(-1),lastStenmarkTurnRef=useRef(-1),lastFrolundaTurnRef=useRef(-1),lastHv71TurnRef=useRef(-1),lastOrnskoldsvikTurnRef=useRef(-1),lastCityEggTurnRef=useRef(-1);
   stateRef.current=state;lobbyRef.current=lobby;placeCityRef.current=game.placeCity;countryRef.current=onlineCountry;
 
   const broadcast=useCallback((message:NetworkMessage)=>guestsRef.current.forEach(c=>c.open&&c.send(message)),[]);
@@ -160,6 +160,20 @@ export default function App(){
     if(!latest||normalizeSong(latest.city.name)!=="skelleftea"||lastSkellefteaVisualTurnRef.current===latest.turnNumber)return;
     lastSkellefteaVisualTurnRef.current=latest.turnNumber;setShowSkellefteaPlayer(true);
     const timer=window.setTimeout(()=>setShowSkellefteaPlayer(false),10000);
+    return()=>window.clearTimeout(timer);
+  },[state.placedCities]);
+  useEffect(()=>{
+    const latest=state.placedCities.at(-1),city=latest?normalizeSong(latest.city.name):"";
+    if(!latest||!["goteborg","vastra-frolunda","vastrafrolunda"].includes(city)||lastFrolundaTurnRef.current===latest.turnNumber)return;
+    lastFrolundaTurnRef.current=latest.turnNumber;setShowFrolundaPlayer(true);
+    const timer=window.setTimeout(()=>setShowFrolundaPlayer(false),10000);
+    return()=>window.clearTimeout(timer);
+  },[state.placedCities]);
+  useEffect(()=>{
+    const latest=state.placedCities.at(-1);
+    if(!latest||normalizeSong(latest.city.name)!=="jonkoping"||lastHv71TurnRef.current===latest.turnNumber)return;
+    lastHv71TurnRef.current=latest.turnNumber;setShowHv71Player(true);
+    const timer=window.setTimeout(()=>setShowHv71Player(false),10000);
     return()=>window.clearTimeout(timer);
   },[state.placedCities]);
   useEffect(()=>{
@@ -242,6 +256,8 @@ export default function App(){
     </section>
     {arrivalCountry&&<div className="country-arrival" style={{borderColor:COUNTRY_META[arrivalCountry].color,color:COUNTRY_META[arrivalCountry].color}}>{COUNTRY_META[arrivalCountry].flag} {COUNTRY_META[arrivalCountry].name.toLocaleUpperCase("sv")} HAR ANSLUTIT</div>}
     {showSkellefteaPlayer&&<img className="skelleftea-player-egg" src="./skelleftea-player.png" alt="Tecknad Skellefteå AIK-spelare"/>}
+    {showFrolundaPlayer&&<img className="skelleftea-player-egg" src="./joel-lundqvist-frolunda.webp" alt="Tecknad Joel Lundqvist i Frölundas matchställ"/>}
+    {showHv71Player&&<img className="skelleftea-player-egg" src="./hv71-player.webp" alt="Tecknad HV71-spelare"/>}
     {showStenmark&&<img className="tarnaby-stenmark-egg" src="./tarnaby-stenmark.png" alt="Tecknad Ingemar Stenmark i en slalomsväng"/>}
     {cityEasterEgg&&<div className="city-easter-egg" role="dialog" aria-label={`Hemligt motiv för ${cityEasterEgg.city}`}><button onClick={()=>setCityEasterEgg(null)} aria-label="Stäng">×</button><img src={`./easter-eggs/${cityEasterEgg.image}`} alt={cityEasterEgg.alt}/></div>}
     {showOrnskoldsvikEgg&&<div className="ornskoldsvik-egg" role="dialog" aria-label="Hemligt hockeymotiv"><button onClick={()=>setShowOrnskoldsvikEgg(false)} aria-label="Stäng">×</button><img src="./ornskoldsvik-easter-egg.webp" alt="En sur Modo-spelare går ner i en källare medan en glad Björklöven-spelare går upp"/><div><b>ÖRNSKÖLDSVIK HITTAD</b><span>Olika riktningar i hockeylivet…</span><i/></div></div>}
