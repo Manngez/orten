@@ -8,7 +8,7 @@ import { updateStatsAfterGame } from "../utils/storage";
 const emptyState:GameState={phase:"setup",mode:"classic",country:"sweden",unlockedCountries:[],players:[],eliminated:[],eliminationOrder:[],currentPlayerIndex:0,placedCities:[],usedCityNames:new Set(),lines:[],lastElimination:null,crossingLines:null,winner:null,scores:[]};
 const nextActive=(out:boolean[],from:number)=>{for(let n=1;n<=out.length;n++){const i=(from+n)%out.length;if(!out[i])return i}return from};
 const distance=(a:{x:number;y:number},b:{x:number;y:number})=>Math.hypot(a.x-b.x,a.y-b.y);
-const progressionCountries=(placedCityCount:number):NordicCountry[]=>placedCityCount>=30?["norway","finland"]:placedCityCount>=20?["norway"]:[];
+const progressionCountries=(placedCityCount:number):NordicCountry[]=>placedCityCount>=30?["norway","finland"]:placedCityCount>=18?["norway"]:[];
 
 export function useGame(){
   const [state,setState]=useState<GameState>(emptyState),[history,setHistory]=useState<GameState[]>([]);

@@ -20,7 +20,7 @@ export default function GameSetup({onStart,onStats,onOnline}:{onStart:(p:string[
       <div className="section-label">Land</div>
       <div className="country-grid">
         <button className="selected"><span>🇸🇪</span> Sverige</button>
-        <button disabled title="Låses upp när 20 orter har placerats"><span>🔒</span> Norge · 20 orter</button>
+        <button disabled title="Låses upp när 18 orter har placerats"><span>🔒</span> Norge · 18 orter</button>
       </div>
       <div className="section-label">Spelläge</div>
       <div className="mode-grid">
