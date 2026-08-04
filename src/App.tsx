@@ -52,7 +52,9 @@ const CITY_EASTER_EGGS:Record<string,CityEasterEgg>={
   savar:{city:"Sävar",image:"savar.webp",alt:"En Sävarbo hjälper en förvirrad soldat från 1809 vid kyrkan"},holmsund:{city:"Holmsund",image:"holmsund.webp",alt:"En färjekapten försöker lasta en alldeles för lång timmerstock"},obbola:{city:"Obbola",image:"obbola.webp",alt:"En enorm pappersrulle slingrar sig genom Obbola"},
   burea:{city:"Bureå",image:"burea.webp",alt:"Ett enormt släktträd fyllt med porträtt av Bureätten"},lovanger:{city:"Lövånger",image:"lovanger.webp",alt:"En förvirrad besökare med en väldig nyckelknippa i kyrkstaden"},anaset:{city:"Ånäset",image:"anaset.webp",alt:"Två gigantiska osthyvlar hyvlar en enorm ost"},
   robertsfors:{city:"Robertsfors",image:"robertsfors.webp",alt:"Ett gammalt elektriskt brukslok laddas vid en modern laddstolpe"},bygdea:{city:"Bygdeå",image:"bygdea.webp",alt:"En historisk kyrkbesökare bär ett berg av kaffe och kanelbullar"},gumboda:{city:"Gumboda",image:"gumboda.webp",alt:"Gamla soldater marscherar rakt in i modern linedance på Gumboda Hed"},
-  solna:{city:"Solna",image:"solna-strawberry-arena.webp",alt:"Strawberry Arena med en jättelik jordgubbe på taket"}
+  solna:{city:"Solna",image:"solna-strawberry-arena.webp",alt:"Strawberry Arena med en jättelik jordgubbe på taket"},
+  vannas:{city:"Vännäs",image:"vannas.webp",alt:"En stressad konduktör försöker hålla reda på alldeles för många tåg"},vindeln:{city:"Vindeln",image:"vindeln.webp",alt:"En kanotist får hjälp genom forsen av en jättelik lax i flytväst"},storlien:{city:"Storlien",image:"storlien.webp",alt:"En skidåkare drar ett orimligt stort lass gränshandel"},
+  ostersund:{city:"Östersund",image:"ostersund.webp",alt:"Storsjöodjuret norpar en förvånad turists glass"},taftea:{city:"Täfteå",image:"taftea.webp",alt:"En bonde stoppar en jättelik fotboll med traktorn"}
 };
 type AppleTrack={trackId?:number;trackName?:string;artistName?:string;previewUrl?:string;artworkUrl60?:string;trackViewUrl?:string};
 function searchAppleWithJsonp(query:string):Promise<AppleTrack[]>{
