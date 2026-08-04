@@ -2,9 +2,9 @@ import { useState } from "react";
 import type { Country, GameMode } from "../types/game";
 export const PLAYER_COLORS=["#fb7185","#38bdf8","#34d399","#fbbf24","#a78bfa","#f472b6","#22d3ee","#fb923c"];
 export default function GameSetup({onStart,onStats,onOnline}:{onStart:(p:string[],m:GameMode,c:Country)=>void;onStats:()=>void;onOnline:()=>void}){
-  const [count,setCount]=useState(2),[names,setNames]=useState(["",""]),[mode,setMode]=useState<GameMode>("classic"),[country,setCountry]=useState<Country>("sweden"),[error,setError]=useState(""),[showRules,setShowRules]=useState(false);
+  const [count,setCount]=useState(2),[names,setNames]=useState(["",""]),[mode,setMode]=useState<GameMode>("classic"),[error,setError]=useState(""),[showRules,setShowRules]=useState(false);
   const changeCount=(n:number)=>{setCount(n);setNames(v=>Array.from({length:n},(_,i)=>v[i]||""))};
-  const start=()=>{const p=names.map((n,i)=>n.trim()||`Spelare ${i+1}`);if(new Set(p.map(n=>n.toLowerCase())).size<p.length){setError("Alla spelare behöver unika namn.");return}onStart(p,mode,country)};
+  const start=()=>{const p=names.map((n,i)=>n.trim()||`Spelare ${i+1}`);if(new Set(p.map(n=>n.toLowerCase())).size<p.length){setError("Alla spelare behöver unika namn.");return}onStart(p,mode,"sweden")};
   return <main className="setup-shell">
     <section className="hero">
       <div className="landing-actions">
@@ -19,8 +19,8 @@ export default function GameSetup({onStart,onStats,onOnline}:{onStart:(p:string[
     <section className="setup-card">
       <div className="section-label">Land</div>
       <div className="country-grid">
-        <button className={country==="sweden"?"selected":""} onClick={()=>setCountry("sweden")}><span>🇸🇪</span> Sverige</button>
-        <button className={country==="norway"?"selected":""} onClick={()=>setCountry("norway")}><span>🇳🇴</span> Norge</button>
+        <button className="selected"><span>🇸🇪</span> Sverige</button>
+        <button disabled title="Låses upp när 20 orter har placerats"><span>🔒</span> Norge · 20 orter</button>
       </div>
       <div className="section-label">Spelläge</div>
       <div className="mode-grid">
