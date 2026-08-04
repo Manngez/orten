@@ -3,7 +3,6 @@ import type { GameState,NordicCountry } from "../types/game";
 import { EUROPE_HEIGHT,EUROPE_OUTLINES,EUROPE_VIEWBOX,EUROPE_WIDTH } from "../data/europeOutlines";
 import { COUNTRY_META } from "../data/countryCatalog";
 import { PLAYER_COLORS } from "./GameSetup";
-import { SWEDEN_LAKE_PATH,SWEDEN_RIVER_PATH } from "../data/swedenWaterways";
 
 const MAX_ZOOM=18;
 
@@ -120,7 +119,6 @@ export default function GameBoard({state}:{state:GameState}){
     <rect width={EUROPE_WIDTH} height={EUROPE_HEIGHT} fill="#071b24"/><rect width={EUROPE_WIDTH} height={EUROPE_HEIGHT} fill="url(#grid)"/>
     <g transform={`translate(${view.x} ${view.y}) scale(${view.scale})`}>
       <g className="country-layer">{countryLayer}</g>
-      {countries.includes("sweden")&&<g className="sweden-water-layer" pointerEvents="none"><path d={SWEDEN_LAKE_PATH} fill="#1d7890" fillOpacity=".52" stroke="#55b5c8" strokeOpacity=".42" strokeWidth=".65" vectorEffect="non-scaling-stroke"/><path d={SWEDEN_RIVER_PATH} fill="none" stroke="#4ba7bd" strokeOpacity=".62" strokeWidth="1.05" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke"/></g>}
       {lineLayer}
       {intersection&&<g className="crossing-point" transform={`translate(${intersection.x} ${intersection.y})`}><circle r={12/view.scale} fill="#ff3347" fillOpacity=".3"/><circle r={6/view.scale} fill="#ff3347" stroke="#fff" strokeWidth="2" vectorEffect="non-scaling-stroke"/></g>}
       {cityLayer}
