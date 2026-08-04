@@ -1,4 +1,4 @@
-import { useMemo,useRef,useState } from "react";
+import { useEffect,useMemo,useRef,useState } from "react";
 import type { GameState,NordicCountry } from "../types/game";
 import { EUROPE_HEIGHT,EUROPE_OUTLINES,EUROPE_VIEWBOX,EUROPE_WIDTH } from "../data/europeOutlines";
 import { COUNTRY_META } from "../data/countryCatalog";
@@ -46,6 +46,18 @@ const fastOutline=(country:NordicCountry,compact:boolean)=>{
   FAST_OUTLINES.set(cacheKey,simplified);return simplified;
 };
 
+const fitCountries=(countries:NordicCountry[])=>{
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  for(const country of countries){
+    const values=(EUROPE_OUTLINES[country]?.path.match(/-?\d+(?:\.\d+)?/g)??[]).map(Number);
+    for(let index=0;index+1<values.length;index+=2){const x=values[index],y=values[index+1];if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y}
+  }
+  if(!Number.isFinite(minX)||maxX<=minX||maxY<=minY)return{x:0,y:0,scale:1};
+  const padding=18,width=maxX-minX,height=maxY-minY;
+  const scale=Math.min(MAX_ZOOM,Math.max(.65,Math.min((EUROPE_WIDTH-padding*2)/width,(EUROPE_HEIGHT-padding*2)/height)));
+  return{scale,x:EUROPE_WIDTH/2-(minX+maxX)/2*scale,y:EUROPE_HEIGHT/2-(minY+maxY)/2*scale};
+};
+
 const clientToSvgPoint=(svg:SVGSVGElement,clientX:number,clientY:number)=>{
   const matrix=svg.getScreenCTM();
   if(matrix){const point=new DOMPoint(clientX,clientY).matrixTransform(matrix.inverse());return{x:point.x,y:point.y}}
@@ -62,9 +74,11 @@ const crossingPoint=(lines:GameState["crossingLines"])=>{
 };
 
 export default function GameBoard({state}:{state:GameState}){
-  const [view,setView]=useState({x:0,y:0,scale:1}),pointers=useRef(new Map<number,{x:number;y:number}>()),gesture=useRef<{distance:number;center:{x:number;y:number};view:{x:number;y:number;scale:number}}|null>(null),frame=useRef<number|null>(null),queuedView=useRef<typeof view|null>(null);
   const countries=[state.country,...state.unlockedCountries.filter(country=>country!==state.country)] as NordicCountry[];
+  const countryKey=countries.join("|"),defaultView=useMemo(()=>fitCountries(countries),[countryKey]);
+  const [view,setView]=useState(defaultView),pointers=useRef(new Map<number,{x:number;y:number}>()),gesture=useRef<{distance:number;center:{x:number;y:number};view:{x:number;y:number;scale:number}}|null>(null),frame=useRef<number|null>(null),queuedView=useRef<typeof view|null>(null);
   const compactMap=countries.length>10;
+  useEffect(()=>setView(defaultView),[defaultView]);
   const newestUnlocked=state.unlockedCountries.at(-1);
   const scheduleView=(next:typeof view)=>{queuedView.current=next;if(frame.current!==null)return;frame.current=requestAnimationFrame(()=>{frame.current=null;if(queuedView.current)setView(queuedView.current)})};
   const countryLayer=useMemo(()=>countries.map(country=>{const unlocked=country!==state.country,animate=!compactMap&&unlocked&&country===newestUnlocked,style=countryStyle(country),outline=fastOutline(country,compactMap);return outline?<path key={country} d={outline} fill={style.fill} fillRule="evenodd" stroke={style.stroke} strokeWidth={unlocked?.7:1.5} strokeOpacity={unlocked?.5:1} vectorEffect="non-scaling-stroke" pointerEvents="none" className={animate?`country-draw ${country}`:""}/>:null}),[state.country,state.unlockedCountries,newestUnlocked,compactMap]);
@@ -99,6 +113,7 @@ export default function GameBoard({state}:{state:GameState}){
     const point=clientToSvgPoint(event.currentTarget,event.clientX,event.clientY);
     setView(current=>{const scale=Math.min(MAX_ZOOM,Math.max(.65,current.scale*(event.deltaY>0?.9:1.1))),anchorX=(point.x-current.x)/current.scale,anchorY=(point.y-current.y)/current.scale;return{scale,x:point.x-anchorX*scale,y:point.y-anchorY*scale}});
   };
+  const zoomBy=(factor:number)=>setView(current=>{const scale=Math.min(MAX_ZOOM,Math.max(.65,current.scale*factor)),anchorX=(EUROPE_WIDTH/2-current.x)/current.scale,anchorY=(EUROPE_HEIGHT/2-current.y)/current.scale;return{scale,x:EUROPE_WIDTH/2-anchorX*scale,y:EUROPE_HEIGHT/2-anchorY*scale}});
   return <div className="board nordic-board"><svg viewBox={EUROPE_VIEWBOX} preserveAspectRatio="xMidYMid meet" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp} onWheel={zoom}>
     <defs><filter id="lineGlow"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><filter id="countryGlow"><feGaussianBlur stdDeviation="5" result="glow"/><feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge></filter><pattern id="grid" width="26" height="26" patternUnits="userSpaceOnUse"><path d="M26 0H0V26" fill="none" stroke="#61b7b0" strokeOpacity=".08" strokeWidth=".6"/></pattern></defs>
     <rect width={EUROPE_WIDTH} height={EUROPE_HEIGHT} fill="#071b24"/><rect width={EUROPE_WIDTH} height={EUROPE_HEIGHT} fill="url(#grid)"/>
@@ -108,5 +123,5 @@ export default function GameBoard({state}:{state:GameState}){
       {intersection&&<g className="crossing-point" transform={`translate(${intersection.x} ${intersection.y})`}><circle r={12/view.scale} fill="#ff3347" fillOpacity=".3"/><circle r={6/view.scale} fill="#ff3347" stroke="#fff" strokeWidth="2" vectorEffect="non-scaling-stroke"/></g>}
       {cityLayer}
     </g>
-  </svg><div className="map-tools"><button onClick={()=>setView({x:0,y:0,scale:1})} aria-label="Återställ kartan">⌂</button><span>Nyp eller dra kartan</span></div></div>
+  </svg><div className="map-tools"><button onClick={()=>zoomBy(1.35)} aria-label="Zooma in">+</button><button onClick={()=>zoomBy(1/1.35)} aria-label="Zooma ut">−</button><button onClick={()=>setView(defaultView)} aria-label="Anpassa kartan till aktiva länder">⌂</button><span>Nyp eller dra kartan</span></div></div>
 }
