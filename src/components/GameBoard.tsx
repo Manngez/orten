@@ -4,7 +4,7 @@ import { EUROPE_HEIGHT,EUROPE_OUTLINES,EUROPE_VIEWBOX,EUROPE_WIDTH } from "../da
 import { COUNTRY_META } from "../data/countryCatalog";
 import { PLAYER_COLORS } from "./GameSetup";
 
-const MAX_ZOOM=18;
+const MAX_ZOOM=36;
 
 const darkFill=(hex:string)=>{const value=hex.replace("#","");if(value.length!==6)return"#172c32";const channel=(start:number)=>Math.round(Number.parseInt(value.slice(start,start+2),16)*.18+12).toString(16).padStart(2,"0");return`#${channel(0)}${channel(2)}${channel(4)}`};
 const countryStyle=(country:NordicCountry)=>({stroke:COUNTRY_META[country].color,fill:darkFill(COUNTRY_META[country].color)});
