@@ -159,42 +159,42 @@ export default function App(){
     const latest=state.placedCities.at(-1);
     if(!latest||normalizeSong(latest.city.name)!=="skelleftea"||lastSkellefteaVisualTurnRef.current===latest.turnNumber)return;
     lastSkellefteaVisualTurnRef.current=latest.turnNumber;setShowSkellefteaPlayer(true);
-    const timer=window.setTimeout(()=>setShowSkellefteaPlayer(false),10000);
+    const timer=window.setTimeout(()=>setShowSkellefteaPlayer(false),7000);
     return()=>window.clearTimeout(timer);
   },[state.placedCities]);
   useEffect(()=>{
     const latest=state.placedCities.at(-1),city=latest?normalizeSong(latest.city.name):"";
     if(!latest||!["goteborg","vastra-frolunda","vastrafrolunda"].includes(city)||lastFrolundaTurnRef.current===latest.turnNumber)return;
     lastFrolundaTurnRef.current=latest.turnNumber;setShowFrolundaPlayer(true);
-    const timer=window.setTimeout(()=>setShowFrolundaPlayer(false),10000);
+    const timer=window.setTimeout(()=>setShowFrolundaPlayer(false),7000);
     return()=>window.clearTimeout(timer);
   },[state.placedCities]);
   useEffect(()=>{
     const latest=state.placedCities.at(-1);
     if(!latest||normalizeSong(latest.city.name)!=="jonkoping"||lastHv71TurnRef.current===latest.turnNumber)return;
     lastHv71TurnRef.current=latest.turnNumber;setShowHv71Player(true);
-    const timer=window.setTimeout(()=>setShowHv71Player(false),10000);
+    const timer=window.setTimeout(()=>setShowHv71Player(false),7000);
     return()=>window.clearTimeout(timer);
   },[state.placedCities]);
   useEffect(()=>{
     const latest=state.placedCities.at(-1);
     if(!latest||normalizeSong(latest.city.name)!=="tarnaby"||lastStenmarkTurnRef.current===latest.turnNumber)return;
     lastStenmarkTurnRef.current=latest.turnNumber;setShowStenmark(true);
-    const timer=window.setTimeout(()=>setShowStenmark(false),10000);
+    const timer=window.setTimeout(()=>setShowStenmark(false),7000);
     return()=>window.clearTimeout(timer);
   },[state.placedCities]);
   useEffect(()=>{
     const latest=state.placedCities.at(-1);
     if(!latest||normalizeSong(latest.city.name)!=="ornskoldsvik"||lastOrnskoldsvikTurnRef.current===latest.turnNumber)return;
     lastOrnskoldsvikTurnRef.current=latest.turnNumber;setShowOrnskoldsvikEgg(true);
-    const timer=window.setTimeout(()=>setShowOrnskoldsvikEgg(false),10000);
+    const timer=window.setTimeout(()=>setShowOrnskoldsvikEgg(false),7000);
     return()=>window.clearTimeout(timer);
   },[state.placedCities]);
   useEffect(()=>{
     const latest=state.placedCities.at(-1),egg=latest?CITY_EASTER_EGGS[normalizeSong(latest.city.name)]:null;
     if(!latest||!egg||lastCityEggTurnRef.current===latest.turnNumber)return;
     lastCityEggTurnRef.current=latest.turnNumber;setCityEasterEgg(egg);
-    const timer=window.setTimeout(()=>setCityEasterEgg(null),10000);
+    const timer=window.setTimeout(()=>setCityEasterEgg(null),7000);
     return()=>window.clearTimeout(timer);
   },[state.placedCities]);
   useEffect(()=>{
