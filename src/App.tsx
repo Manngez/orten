@@ -85,7 +85,7 @@ function playRemotePreview(url:string){remoteAudioElement??=new Audio();remoteAu
 
 export default function App(){
   const game=useGame(),{state}=game;
-  const [stats,setStats]=useState(false),[sound,setSound]=useState(()=>localStorage.getItem("blindkarta_sound")!=="off"),[left,setLeft]=useState(15),[showGameResult,setShowGameResult]=useState(true);
+  const [stats,setStats]=useState(false),[sound,setSound]=useState(()=>localStorage.getItem("blindkarta_sound")!=="off"),[left,setLeft]=useState(15),[showGameResult,setShowGameResult]=useState(true),[cityHistoryOpen,setCityHistoryOpen]=useState(true);
   const [showOnline,setShowOnline]=useState(false),[role,setRole]=useState<OnlineRole>("offline"),[status,setStatus]=useState<OnlineStatus>("idle");
   const [name,setName]=useState(""),[room,setRoom]=useState(""),[error,setError]=useState(""),[playerId,setPlayerId]=useState("");
   const [lobby,setLobby]=useState<LobbyPlayer[]>([]),[onlineMode,setOnlineMode]=useState<GameMode>("classic"),[pending,setPending]=useState(false);
@@ -259,7 +259,7 @@ export default function App(){
         {state.mode==="blitz"&&<div className="timer-track"><i style={{width:`${left/15*100}%`}}/></div>}
         {!currentConnected&&<p className="connection-warning">Spelet väntar på att {game.currentPlayer} återansluter.</p>}
         <div className="scoreboard">{state.players.map((p,i)=><div key={p} className={`${i===state.currentPlayerIndex?"active":""} ${state.eliminated[i]?"out":""}`}><span style={{background:PLAYER_COLORS[i]}}>{i+1}</span><b>{p}</b><small>{counts[i]} orter</small><strong>{state.scores[i]||0} p</strong></div>)}</div>
-        <section className="city-history"><div className="city-history-title"><b>VALDA ORTER</b><span>{state.placedCities.length}</span></div>{state.placedCities.length===0?<p>Inga orter valda ännu</p>:<ol>{state.placedCities.map((placed,index)=><li key={`${placed.turnNumber}-${placed.city.name}`} className={index===state.placedCities.length-1?"latest":""}><i style={{background:PLAYER_COLORS[placed.playerIndex]}}/><span>{placed.turnNumber}</span><b>{placed.city.name}</b><small>{state.players[placed.playerIndex]}</small></li>)}</ol>}</section>
+        <section className={`city-history ${cityHistoryOpen?"open":"collapsed"}`}><button className="city-history-title" type="button" aria-expanded={cityHistoryOpen} aria-controls="city-history-list" onClick={()=>setCityHistoryOpen(open=>!open)}><b>VALDA ORTER</b><span>{state.placedCities.length}</span><i aria-hidden="true">⌃</i></button><div id="city-history-list" className="city-history-content">{state.placedCities.length===0?<p>Inga orter valda ännu</p>:<ol>{state.placedCities.map((placed,index)=><li key={`${placed.turnNumber}-${placed.city.name}`} className={index===state.placedCities.length-1?"latest":""}><i style={{background:PLAYER_COLORS[placed.playerIndex]}}/><span>{placed.turnNumber}</span><b>{placed.city.name}</b><small>{state.players[placed.playerIndex]}</small></li>)}</ol>}</div></section>
         <div className="desktop-input"><CityInput country={state.country} unlockedCountries={state.unlockedCountries} usedCityNames={state.usedCityNames} onPlaceCity={submit} disabled={!isMyTurn||pending||!currentConnected}/></div>
         {role!=="guest"&&<button className="undo" disabled={!game.canUndo} onClick={game.undoLastMove}>↶ Ångra senaste drag</button>}
       </aside>
