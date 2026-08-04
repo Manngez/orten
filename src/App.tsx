@@ -54,7 +54,9 @@ const CITY_EASTER_EGGS:Record<string,CityEasterEgg>={
   robertsfors:{city:"Robertsfors",image:"robertsfors.webp",alt:"Ett gammalt elektriskt brukslok laddas vid en modern laddstolpe"},bygdea:{city:"Bygdeå",image:"bygdea.webp",alt:"En historisk kyrkbesökare bär ett berg av kaffe och kanelbullar"},gumboda:{city:"Gumboda",image:"gumboda.webp",alt:"Gamla soldater marscherar rakt in i modern linedance på Gumboda Hed"},
   solna:{city:"Solna",image:"solna-strawberry-arena.webp",alt:"Strawberry Arena med en jättelik jordgubbe på taket"},
   vannas:{city:"Vännäs",image:"vannas.webp",alt:"En stressad konduktör försöker hålla reda på alldeles för många tåg"},vindeln:{city:"Vindeln",image:"vindeln.webp",alt:"En kanotist får hjälp genom forsen av en jättelik lax i flytväst"},storlien:{city:"Storlien",image:"storlien.webp",alt:"En skidåkare drar ett orimligt stort lass gränshandel"},
-  ostersund:{city:"Östersund",image:"ostersund.webp",alt:"Storsjöodjuret norpar en förvånad turists glass"},taftea:{city:"Täfteå",image:"taftea.webp",alt:"En bonde stoppar en jättelik fotboll med traktorn"}
+  ostersund:{city:"Östersund",image:"ostersund.webp",alt:"Storsjöodjuret norpar en förvånad turists glass"},taftea:{city:"Täfteå",image:"taftea.webp",alt:"En bonde stoppar en jättelik fotboll med traktorn"},
+  sundsvall:{city:"Sundsvall",image:"sundsvall.webp",alt:"En vänlig drake putsar Stenstans fasader"},riksgransen:{city:"Riksgränsen",image:"riksgransen.webp",alt:"Två skidåkare försöker förstå midnattssolen"},hemavan:{city:"Hemavan",image:"hemavan.webp",alt:"Renar med liftkort köar till gondolen"},
+  kalmar:{city:"Kalmar",image:"kalmar.webp",alt:"En cyklande riddare väntar vid slottets långsamma vindbrygga"},koping:{city:"Köping",image:"koping.webp",alt:"Scheeles experiment skapar en bubbla som lyfter hans peruk"},kolmarden:{city:"Kolmården",image:"kolmarden.webp",alt:"En nyfiken giraff hälsar på en safari-gondol"}
 };
 type AppleTrack={trackId?:number;trackName?:string;artistName?:string;previewUrl?:string;artworkUrl60?:string;trackViewUrl?:string};
 function searchAppleWithJsonp(query:string):Promise<AppleTrack[]>{
