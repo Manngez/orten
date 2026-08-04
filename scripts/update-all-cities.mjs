@@ -58,6 +58,8 @@ const countries = [
   { code: "UA", key: "ukraine", exportName: "UKRAINIAN_CITIES", file: "ukraineCities.ts", limit: 18000 },
   { code: "GB", key: "unitedKingdom", exportName: "BRITISH_CITIES", file: "unitedKingdomCities.ts", limit: 20000 },
   { code: "VA", key: "vaticanCity", exportName: "VATICAN_CITIES", file: "vaticanCityCities.ts", limit: 100 },
+  { code: "US", key: "unitedStates", exportName: "UNITED_STATES_CITIES", file: "unitedStatesCities.ts", limit: 60000 },
+  { code: "CA", key: "canada", exportName: "CANADIAN_CITIES", file: "canadaCities.ts", limit: 25000 },
 ];
 
 const acceptedCodes = new Set(["PPL","PPLA","PPLA2","PPLA3","PPLA4","PPLA5","PPLC","PPLG","PPLS","PPLX"]);

@@ -1,6 +1,6 @@
 import { useMemo,useRef,useState } from "react";
 import type { GameState,NordicCountry } from "../types/game";
-import { EUROPE_OUTLINES,EUROPE_VIEWBOX } from "../data/europeOutlines";
+import { EUROPE_HEIGHT,EUROPE_OUTLINES,EUROPE_VIEWBOX,EUROPE_WIDTH } from "../data/europeOutlines";
 import { COUNTRY_META } from "../data/countryCatalog";
 import { PLAYER_COLORS } from "./GameSetup";
 
@@ -31,7 +31,7 @@ const fastOutline=(country:NordicCountry,compact:boolean)=>{
     for(let i=0;i+1<values.length;i+=2)points.push({x:values[i],y:values[i+1]});
     if(points.length<3)return"";
     const xs=points.map(point=>point.x),ys=points.map(point=>point.y);
-    if(Math.max(...xs)<0||Math.min(...xs)>1200||Math.max(...ys)<0||Math.min(...ys)>900)return"";
+    if(Math.max(...xs)<0||Math.min(...xs)>EUROPE_WIDTH||Math.max(...ys)<0||Math.min(...ys)>EUROPE_HEIGHT)return"";
     const width=Math.max(...xs)-Math.min(...xs),height=Math.max(...ys)-Math.min(...ys);
     if(compact&&width<.7&&height<.7)return"";
     const closed=/Z\s*$/.test(part),radial=[points[0]],minDistance=compact?.7:.3;
@@ -50,7 +50,7 @@ const clientToSvgPoint=(svg:SVGSVGElement,clientX:number,clientY:number)=>{
   const matrix=svg.getScreenCTM();
   if(matrix){const point=new DOMPoint(clientX,clientY).matrixTransform(matrix.inverse());return{x:point.x,y:point.y}}
   const rect=svg.getBoundingClientRect();
-  return{x:(clientX-rect.left)/rect.width*620,y:(clientY-rect.top)/rect.height*1160};
+  return{x:(clientX-rect.left)/rect.width*EUROPE_WIDTH,y:(clientY-rect.top)/rect.height*EUROPE_HEIGHT};
 };
 
 const crossingPoint=(lines:GameState["crossingLines"])=>{
@@ -101,7 +101,7 @@ export default function GameBoard({state}:{state:GameState}){
   };
   return <div className="board nordic-board"><svg viewBox={EUROPE_VIEWBOX} preserveAspectRatio="xMidYMid meet" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp} onWheel={zoom}>
     <defs><filter id="lineGlow"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><filter id="countryGlow"><feGaussianBlur stdDeviation="5" result="glow"/><feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge></filter><pattern id="grid" width="26" height="26" patternUnits="userSpaceOnUse"><path d="M26 0H0V26" fill="none" stroke="#61b7b0" strokeOpacity=".08" strokeWidth=".6"/></pattern></defs>
-    <rect width="620" height="1160" fill="#071b24"/><rect width="620" height="1160" fill="url(#grid)"/>
+    <rect width={EUROPE_WIDTH} height={EUROPE_HEIGHT} fill="#071b24"/><rect width={EUROPE_WIDTH} height={EUROPE_HEIGHT} fill="url(#grid)"/>
     <g transform={`translate(${view.x} ${view.y}) scale(${view.scale})`}>
       <g className="country-layer">{countryLayer}</g>
       {lineLayer}

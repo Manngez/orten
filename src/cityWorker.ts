@@ -21,6 +21,7 @@ const loaders:Record<NordicCountry,()=>Promise<CityModule>>={
   ,northMacedonia:()=>import("./data/northMacedoniaCities"),portugal:()=>import("./data/portugalCities"),romania:()=>import("./data/romaniaCities"),russia:()=>import("./data/russiaCities"),sanMarino:()=>import("./data/sanMarinoCities")
   ,serbia:()=>import("./data/serbiaCities"),slovakia:()=>import("./data/slovakiaCities"),slovenia:()=>import("./data/sloveniaCities"),turkey:()=>import("./data/turkeyCities"),ukraine:()=>import("./data/ukraineCities")
   ,unitedKingdom:()=>import("./data/unitedKingdomCities"),vaticanCity:()=>import("./data/vaticanCityCities")
+  ,unitedStates:()=>import("./data/unitedStatesCities"),canada:()=>import("./data/canadaCities")
 };
 const loaded=new Map<NordicCountry,Promise<LoadedCountry>>();
 const normalize=(value:string)=>value.normalize("NFKC").toLocaleLowerCase("sv-SE").trim();

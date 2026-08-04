@@ -2,7 +2,7 @@ import type { NordicCountry } from "../types/game";
 
 export type CountryMeta={flag:string;name:string;anthem:string;color:string};
 
-/** Gemensam presentation för samtliga spelbara europeiska länder. */
+/** Gemensam presentation för samtliga spelbara länder. */
 export const COUNTRY_META:Record<NordicCountry,CountryMeta>={
   sweden:{flag:"🇸🇪",name:"Sverige",anthem:"",color:"#3b7f78"},
   norway:{flag:"🇳🇴",name:"Norge",anthem:"https://commons.wikimedia.org/wiki/Special:Redirect/file/Norway%20(National%20Anthem).ogg",color:"#ff4268"},
@@ -37,7 +37,8 @@ export const COUNTRY_META:Record<NordicCountry,CountryMeta>={
   sanMarino:{flag:"🇸🇲",name:"San Marino",anthem:"",color:"#48cae4"},serbia:{flag:"🇷🇸",name:"Serbien",anthem:"",color:"#c1121f"},
   slovakia:{flag:"🇸🇰",name:"Slovakien",anthem:"",color:"#00bbf9"},slovenia:{flag:"🇸🇮",name:"Slovenien",anthem:"",color:"#00f5d4"},
   turkey:{flag:"🇹🇷",name:"Turkiet",anthem:"",color:"#ef233c"},ukraine:{flag:"🇺🇦",name:"Ukraina",anthem:"",color:"#ffd60a"},
-  unitedKingdom:{flag:"🇬🇧",name:"Storbritannien",anthem:"",color:"#8338ec"},vaticanCity:{flag:"🇻🇦",name:"Vatikanstaten",anthem:"",color:"#ffdd00"}
+  unitedKingdom:{flag:"🇬🇧",name:"Storbritannien",anthem:"",color:"#8338ec"},vaticanCity:{flag:"🇻🇦",name:"Vatikanstaten",anthem:"",color:"#ffdd00"},
+  unitedStates:{flag:"🇺🇸",name:"USA",anthem:"",color:"#3a86ff"},canada:{flag:"🇨🇦",name:"Kanada",anthem:"",color:"#ff4d6d"}
 };
 
 export const UNLOCKABLE_COUNTRIES=(Object.keys(COUNTRY_META) as NordicCountry[]).filter((country):country is Exclude<NordicCountry,"sweden">=>country!=="sweden");

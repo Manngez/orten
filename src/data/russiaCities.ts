@@ -9052,9 +9052,6 @@ export const RUSSIAN_CITIES: City[] = [
   { name: "Bukhaidze", lat: 43.31833, lng: 42.75056 },
   { name: "Bukhalkino", lat: 58.04230, lng: 45.58010 },
   { name: "Bukhalovo", lat: 57.31795, lng: 35.17316 },
-  { name: "Bukhara"
-... 88797 bytes omitted ...
-333, lng: 46.75000 },
   { name: "Chernikov", lat: 45.18262, lng: 38.83339 },
   { name: "Chernikovo", lat: 54.76526, lng: 32.35829 },
   { name: "Chernikovsk", lat: 54.80000, lng: 56.13333 },

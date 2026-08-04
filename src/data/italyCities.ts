@@ -9308,9 +9308,6 @@ export const ITALIAN_CITIES: City[] = [
   { name: "Macerine", lat: 41.44635, lng: 13.89093 },
   { name: "Macesina", lat: 45.51823, lng: 10.43880 },
   { name: "Macherio", lat: 45.63974, lng: 9.27394 },
-  { name: "Machiarel
-... 85637 bytes omitted ...
-4, lng: 7.87045 },
   { name: "Montegiovi", lat: 42.91111, lng: 11.52088 },
   { name: "Montegranaro", lat: 43.23099, lng: 13.63047 },
   { name: "Montegrazie", lat: 43.91820, lng: 7.98483 },

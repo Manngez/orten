@@ -9390,9 +9390,6 @@ export const BRITISH_CITIES: City[] = [
   { name: "Drumvaich", lat: 56.21173, lng: -4.13764 },
   { name: "Drumwhirn", lat: 55.10000, lng: -3.96667 },
   { name: "Druridge Bay", lat: 55.25642, lng: -1.58411 },
-  { name: "Drury"
-... 67307 bytes omitted ...
-},
   { name: "Etchinghill", lat: 51.11337, lng: 1.09483 },
   { name: "Etchingwood", lat: 50.98037, lng: 0.14489 },
   { name: "Etherley Dene", lat: 54.65500, lng: -1.70118 },

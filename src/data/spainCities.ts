@@ -9260,9 +9260,6 @@ export const SPANISH_CITIES: City[] = [
   { name: "Frula", lat: 41.91043, lng: -0.44801 },
   { name: "Frumales", lat: 41.38333, lng: -4.18631 },
   { name: "Fuejo (Gijon)", lat: 43.53333, lng: -5.61667 },
-  { name: "Fuejo (Grado)", lat: 43.3653
-... 91136 bytes omitted ...
-l Moral", lat: 37.18699, lng: -7.34170 },
   { name: "Isla Plana", lat: 37.57465, lng: -1.20858 },
   { name: "Islabekoa", lat: 43.36045, lng: -2.66770 },
   { name: "Islallana", lat: 42.32490, lng: -2.51491 },

@@ -6,7 +6,8 @@ export type NordicCountry =
   | "albania" | "andorra" | "armenia" | "azerbaijan" | "belarus" | "bosniaHerzegovina" | "bulgaria" | "croatia"
   | "cyprus" | "czechia" | "georgia" | "greece" | "iceland" | "ireland" | "kosovo" | "liechtenstein" | "malta"
   | "moldova" | "monaco" | "montenegro" | "northMacedonia" | "portugal" | "romania" | "russia" | "sanMarino"
-  | "serbia" | "slovakia" | "slovenia" | "turkey" | "ukraine" | "unitedKingdom" | "vaticanCity";
+  | "serbia" | "slovakia" | "slovenia" | "turkey" | "ukraine" | "unitedKingdom" | "vaticanCity"
+  | "unitedStates" | "canada";
 export interface Point { x: number; y: number }
 export interface PlacedCity { city: City; point: Point; playerIndex: number; turnNumber: number; points: number }
 export interface LineSegment { from: Point; to: Point; playerIndex: number; turnNumber: number }
