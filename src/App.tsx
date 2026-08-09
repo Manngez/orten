@@ -12,6 +12,7 @@ type OnlineRole="offline"|"host"|"guest";
 type OnlineStatus="idle"|"connecting"|"reconnecting"|"connected"|"error";
 type LobbyPlayer={id:string;name:string;connected:boolean;ready:boolean};
 type WireGameState=Omit<GameState,"usedCityNames">&{usedCityNames:string[]};
+type MoveSubmitResult={success:boolean;message?:string};
 type NetworkMessage=
   |{type:"JOIN";id:string;name:string}
   |{type:"READY";playerId:string}
@@ -19,6 +20,8 @@ type NetworkMessage=
   |{type:"LOBBY";players:LobbyPlayer[];country:Country}
   |{type:"STATE";state:WireGameState}
   |{type:"MOVE";cityName:string;playerId:string}
+  |{type:"MOVE_RESULT";playerId:string;success:boolean;message?:string}
+  |{type:"EASTER";cityName:string;turnNumber:number}
   |{type:"TIMER";seconds:number}
   |{type:"MUSIC";previewUrl:string;title:string}
   |{type:"LEAVE";playerId:string};
@@ -108,16 +111,26 @@ export default function App(){
   const [showOrnskoldsvikEgg,setShowOrnskoldsvikEgg]=useState(false),[showSkellefteaPlayer,setShowSkellefteaPlayer]=useState(false),[showStenmark,setShowStenmark]=useState(false),[showFrolundaPlayer,setShowFrolundaPlayer]=useState(false),[showHv71Player,setShowHv71Player]=useState(false);
   const [cityEasterEgg,setCityEasterEgg]=useState<CityEasterEgg|null>(null);
   const peerRef=useRef<Peer|null>(null),hostRef=useRef<DataConnection|null>(null),guestsRef=useRef<DataConnection[]>([]),reconnectTimerRef=useRef<number|null>(null),reconnectNowRef=useRef<(()=>void)|null>(null),networkGenerationRef=useRef(0);
-  const idsRef=useRef(new Map<DataConnection,string>()),stateRef=useRef(state),lobbyRef=useRef(lobby),placeCityRef=useRef(game.placeCity),countryRef=useRef(onlineCountry);
+  const idsRef=useRef(new Map<DataConnection,string>()),stateRef=useRef(state),lobbyRef=useRef(lobby),placeCityRef=useRef(game.placeCity),countryRef=useRef(onlineCountry),pendingMoveRef=useRef<{resolve:(result:MoveSubmitResult)=>void;timer:number}|null>(null);
   const currentPlayerTapsRef=useRef(0),previousUnlockedRef=useRef(state.unlockedCountries),lastSaikTurnRef=useRef(-1),lastSkellefteaVisualTurnRef=useRef(-1),lastStenmarkTurnRef=useRef(-1),lastFrolundaTurnRef=useRef(-1),lastHv71TurnRef=useRef(-1),lastOrnskoldsvikTurnRef=useRef(-1),lastCityEggTurnRef=useRef(-1);
   stateRef.current=state;lobbyRef.current=lobby;placeCityRef.current=game.placeCity;countryRef.current=onlineCountry;
 
   const broadcast=useCallback((message:NetworkMessage)=>guestsRef.current.forEach(c=>c.open&&c.send(message)),[]);
+  const finishPendingMove=useCallback((result:MoveSubmitResult)=>{const pendingMove=pendingMoveRef.current;if(pendingMove){window.clearTimeout(pendingMove.timer);pendingMoveRef.current=null;pendingMove.resolve(result)}setPending(false)},[]);
+  const triggerNetworkEaster=useCallback((cityName:string,turnNumber:number)=>{
+    const city=normalizeSong(cityName);
+    if(city==="skelleftea"&&lastSkellefteaVisualTurnRef.current!==turnNumber){lastSkellefteaVisualTurnRef.current=turnNumber;setShowSkellefteaPlayer(true);window.setTimeout(()=>setShowSkellefteaPlayer(false),7000)}
+    if(["goteborg","vastrafrolunda"].includes(city)&&lastFrolundaTurnRef.current!==turnNumber){lastFrolundaTurnRef.current=turnNumber;setShowFrolundaPlayer(true);window.setTimeout(()=>setShowFrolundaPlayer(false),7000)}
+    if(city==="jonkoping"&&lastHv71TurnRef.current!==turnNumber){lastHv71TurnRef.current=turnNumber;setShowHv71Player(true);window.setTimeout(()=>setShowHv71Player(false),7000)}
+    if(city==="tarnaby"&&lastStenmarkTurnRef.current!==turnNumber){lastStenmarkTurnRef.current=turnNumber;setShowStenmark(true);window.setTimeout(()=>setShowStenmark(false),7000)}
+    if(city==="ornskoldsvik"&&lastOrnskoldsvikTurnRef.current!==turnNumber){lastOrnskoldsvikTurnRef.current=turnNumber;setShowOrnskoldsvikEgg(true);window.setTimeout(()=>setShowOrnskoldsvikEgg(false),7000)}
+    const egg=CITY_EASTER_EGGS[city];if(egg&&lastCityEggTurnRef.current!==turnNumber){lastCityEggTurnRef.current=turnNumber;setCityEasterEgg(egg);window.setTimeout(()=>setCityEasterEgg(current=>current===egg?null:current),7000)}
+  },[]);
   const startRoomMusic=async(song:DevSong)=>{if(role!=="host"||devMusicLoading)return;setDevMusicLoading(true);setDevMusicStatus("Hämtar förhandslyssning…");try{const previewUrl=await resolveApplePreview(song);if(!previewUrl){setDevMusicStatus("Ingen förhandslyssning hittades.");return}broadcast({type:"MUSIC",previewUrl,title:`${song.artist} – ${song.title}`});setDevMusicStatus(`Spelar på deltagarnas enheter: ${song.title}`)}catch{setDevMusicStatus("Kunde inte hämta låten. Försök igen.")}finally{setDevMusicLoading(false)}};
   const runDevSearch=async()=>{const query=devSearch.trim();if(!query||devMusicLoading)return;setDevMusicLoading(true);setDevMusicStatus("Söker i Apple Music…");setDevResults([]);try{const results=await searchApple(query),unique=results.filter((track,index,list)=>list.findIndex(other=>(other.trackId&&other.trackId===track.trackId)||(`${other.artistName}-${other.trackName}`===`${track.artistName}-${track.trackName}`))===index).slice(0,5);setDevResults(unique);setDevMusicStatus(unique.length?`${unique.length} låtar hittades.`:"Inga låtar med förhandslyssning hittades.")}catch{setDevMusicStatus("Sökningen misslyckades. Försök igen.")}finally{setDevMusicLoading(false)}};
   const playSearchResult=(track:AppleTrack)=>{if(role!=="host"||!track.previewUrl)return;broadcast({type:"MUSIC",previewUrl:track.previewUrl,title:`${track.artistName} – ${track.trackName}`});setDevMusicStatus(`Spelar på deltagarnas enheter: ${track.trackName}`)};
   const setAndBroadcastLobby=useCallback((next:LobbyPlayer[])=>{lobbyRef.current=next;setLobby(next);broadcast({type:"LOBBY",players:next,country:countryRef.current})},[broadcast]);
-  const stopNetwork=useCallback(()=>{networkGenerationRef.current++;if(reconnectTimerRef.current!==null)window.clearTimeout(reconnectTimerRef.current);reconnectTimerRef.current=null;reconnectNowRef.current=null;hostRef.current?.close();hostRef.current=null;guestsRef.current.forEach(c=>c.close());guestsRef.current=[];idsRef.current.clear();peerRef.current?.destroy();peerRef.current=null},[]);
+  const stopNetwork=useCallback(()=>{networkGenerationRef.current++;if(reconnectTimerRef.current!==null)window.clearTimeout(reconnectTimerRef.current);reconnectTimerRef.current=null;reconnectNowRef.current=null;finishPendingMove({success:false,message:"Anslutningen stängdes. Försök igen."});hostRef.current?.close();hostRef.current=null;guestsRef.current.forEach(c=>c.close());guestsRef.current=[];idsRef.current.clear();peerRef.current?.destroy();peerRef.current=null},[finishPendingMove]);
   const leaveOnline=useCallback(()=>{if(role==="guest"&&hostRef.current?.open)hostRef.current.send({type:"LEAVE",playerId} satisfies NetworkMessage);stopNetwork();setRole("offline");setStatus("idle");setLobby([]);setShowOnline(false);setPending(false);setError("");game.resetGame()},[game,playerId,role,stopNetwork]);
 
   const attachGuest=useCallback((connection:DataConnection)=>{
@@ -135,7 +148,9 @@ export default function App(){
       if(!authenticated)return;
       if(message.type==="MOVE"&&message.playerId===authenticated){
         const current=lobbyRef.current[stateRef.current.currentPlayerIndex]?.id;
-        if(current===authenticated)void placeCityRef.current(message.cityName);
+        if(current!==authenticated){connection.send({type:"MOVE_RESULT",playerId:authenticated,success:false,message:"Det är inte din tur."} satisfies NetworkMessage);return}
+        void (async()=>{let result:MoveSubmitResult;try{result=await placeCityRef.current(message.cityName)}catch{result={success:false,message:"Kunde inte kontrollera orten. Försök igen."}}if(connection.open)connection.send({type:"MOVE_RESULT",playerId:authenticated,success:result.success,...(result.message?{message:result.message}:{})} satisfies NetworkMessage)})();
+        return;
       }
       if(message.type==="LEAVE"&&message.playerId===authenticated)setAndBroadcastLobby(lobbyRef.current.map(p=>p.id===authenticated?{...p,connected:false}:p));
       if(message.type==="READY"&&message.playerId===authenticated)setAndBroadcastLobby(lobbyRef.current.map(p=>p.id===authenticated?{...p,connected:true,ready:true}:p));
@@ -163,15 +178,15 @@ export default function App(){
     const generation=networkGenerationRef.current,peer=new Peer(peerOptions());peerRef.current=peer;let attempts=0,openedOnce=false;
     const startupTimer=window.setTimeout(()=>{if(generation!==networkGenerationRef.current||peer.destroyed||peer.open)return;peer.destroy();peerRef.current=null;if(autoRetry<2){setStatus("reconnecting");setError(`Anslutningstjänsten svarar inte. Nytt försök ${autoRetry+1}/2…`);reconnectTimerRef.current=window.setTimeout(()=>joinRoom(autoRetry+1),1200);return}setStatus("error");setError("Kunde inte nå nätverkstjänsten inom 8 sekunder. Kontrollera internet och försök igen.")},8000);
     const connectToHost=()=>{if(generation!==networkGenerationRef.current||peer.destroyed)return;setStatus(attempts?"reconnecting":"connecting");const connection=peer.connect(roomPeerId(code),{reliable:true,serialization:"json"});hostRef.current=connection;let settled=false;
-      const retry=(type?:string)=>{if(settled||generation!==networkGenerationRef.current)return;settled=true;if(attempts>=3){setStatus("error");setError(networkError(type));return}attempts++;const delay=Math.min(1000*2**(attempts-1),8000);setStatus("reconnecting");setError(`Anslutningen bröts. Nytt försök om ${Math.ceil(delay/1000)} s…`);reconnectTimerRef.current=window.setTimeout(connectToHost,delay)};
+      const retry=(type?:string)=>{if(settled||generation!==networkGenerationRef.current)return;settled=true;if(attempts>=3){setStatus("error");setError(networkError(type));finishPendingMove({success:false,message:"Anslutningen bröts. Försök igen."});return}attempts++;const delay=Math.min(1000*2**(attempts-1),8000);setStatus("reconnecting");setError(`Anslutningen bröts. Nytt försök om ${Math.ceil(delay/1000)} s…`);reconnectTimerRef.current=window.setTimeout(connectToHost,delay)};
       const connectionTimer=window.setTimeout(()=>{if(settled||connection.open)return;retry(openedOnce?"network":"peer-unavailable");connection.close()},8000);
       connection.on("open",()=>{window.clearTimeout(connectionTimer);settled=false;openedOnce=true;attempts=0;setStatus("connected");setError("");connection.send({type:"JOIN",id,name:name.trim()} satisfies NetworkMessage)});
-      connection.on("data",raw=>{const message=raw as NetworkMessage;if(message.type==="LOBBY"){setLobby(message.players);setOnlineCountry(message.country)}if(message.type==="IDENTITY")setPlayerId(message.id);if(message.type==="STATE"){game.setRemoteState({...message.state,usedCityNames:new Set(message.state.usedCityNames)});setPending(false)}if(message.type==="TIMER")setLeft(message.seconds);if(message.type==="MUSIC"&&typeof message.previewUrl==="string"&&localStorage.getItem("blindkarta_sound")!=="off")playRemotePreview(message.previewUrl)});
+      connection.on("data",raw=>{const message=raw as NetworkMessage;if(message.type==="LOBBY"){setLobby(message.players);setOnlineCountry(message.country)}if(message.type==="IDENTITY")setPlayerId(message.id);if(message.type==="STATE")game.setRemoteState({...message.state,usedCityNames:new Set(message.state.usedCityNames)});if(message.type==="MOVE_RESULT"&&message.playerId===id)finishPendingMove({success:message.success,...(message.message?{message:message.message}:{})});if(message.type==="EASTER")triggerNetworkEaster(message.cityName,message.turnNumber);if(message.type==="TIMER")setLeft(message.seconds);if(message.type==="MUSIC"&&typeof message.previewUrl==="string"&&localStorage.getItem("blindkarta_sound")!=="off")playRemotePreview(message.previewUrl)});
       connection.on("close",()=>{window.clearTimeout(connectionTimer);retry(openedOnce?"network":"peer-unavailable")});connection.on("error",error=>{window.clearTimeout(connectionTimer);retry((error as {type?:string}).type)});
     };
     reconnectNowRef.current=connectToHost;
     peer.on("open",()=>{window.clearTimeout(startupTimer);connectToHost()});peer.on("disconnected",()=>{if(generation!==networkGenerationRef.current||peer.destroyed)return;setStatus("reconnecting");setError("Kontakten med nätverket bröts. Återansluter…");reconnectTimerRef.current=window.setTimeout(()=>{if(!peer.destroyed&&peer.disconnected)peer.reconnect()},1200)});
-    peer.on("error",e=>{window.clearTimeout(startupTimer);if(generation!==networkGenerationRef.current)return;if(e.type==="peer-unavailable"&&!openedOnce){setStatus("error");setError(networkError(e.type));return}if(!hostRef.current?.open){setStatus("error");setError(networkError(e.type))}});
+    peer.on("error",e=>{window.clearTimeout(startupTimer);if(generation!==networkGenerationRef.current)return;if(e.type==="peer-unavailable"&&!openedOnce){setStatus("error");setError(networkError(e.type));finishPendingMove({success:false,message:"Rummet kunde inte nås. Försök igen."});return}if(!hostRef.current?.open){setStatus("error");setError(networkError(e.type));finishPendingMove({success:false,message:"Anslutningen misslyckades. Försök igen."})}});
   };
 
   useEffect(()=>{const reconnectWhenOnline=()=>{const peer=peerRef.current;if(peer?.disconnected&&!peer.destroyed)peer.reconnect();else if(!hostRef.current?.open)reconnectNowRef.current?.()};window.addEventListener("online",reconnectWhenOnline);return()=>window.removeEventListener("online",reconnectWhenOnline)},[]);
@@ -236,6 +251,7 @@ export default function App(){
     const timer=window.setTimeout(()=>setCityEasterEgg(null),7000);
     return()=>window.clearTimeout(timer);
   },[state.placedCities]);
+  useEffect(()=>{const latest=state.placedCities.at(-1);if(role==="host"&&latest)broadcast({type:"EASTER",cityName:latest.city.name,turnNumber:latest.turnNumber})},[broadcast,role,state.placedCities]);
   useEffect(()=>{
     if(state.phase==="setup")return;
     window.scrollTo(0,0);
@@ -263,8 +279,10 @@ export default function App(){
   const currentConnected=role==="offline"||lobby[state.currentPlayerIndex]?.connected===true;
   const submit=async(cityName:string)=>{
     if(role==="guest"){
-      if(!isMyTurn||pending||!hostRef.current?.open)return{success:false,message:"Vänta tills det är din tur."};
-      setPending(true);hostRef.current.send({type:"MOVE",cityName,playerId} satisfies NetworkMessage);return{success:true};
+      const connection=hostRef.current;
+      if(!isMyTurn||pending||!connection?.open)return{success:false,message:"Vänta tills det är din tur."};
+      setPending(true);
+      return new Promise<MoveSubmitResult>(resolve=>{const timer=window.setTimeout(()=>finishPendingMove({success:false,message:"Spelledaren svarade inte. Försök igen."}),10000);pendingMoveRef.current={resolve,timer};try{connection.send({type:"MOVE",cityName,playerId} satisfies NetworkMessage)}catch{finishPendingMove({success:false,message:"Kunde inte skicka orten. Försök igen."})}});
     }
     const result=await game.placeCity(cityName);if(result.success&&sound)beep();return result;
   };
