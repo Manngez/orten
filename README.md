@@ -18,6 +18,18 @@ Ett lokalt geografispel för 2–8 spelare. Nämn svenska orter i tur och ordnin
 - Varje spelare skriver orten på sin egen mobil när det är deras tur
 - Gemensamt synkroniserad karta, poäng, turordning och Blitz-timer
 - Anslutningsstatus och återanslutning med samma rumskod
+
+## TURN för onlineanslutning
+
+Onlinefunktionen använder publika STUN-servrar som standard. För nätverk där en direkt WebRTC-anslutning blockeras kan bygget kompletteras med en TURN-server:
+
+```env
+VITE_TURN_URLS=turn:turn.example.com:3478,turns:turn.example.com:5349
+VITE_TURN_USERNAME=anvandare
+VITE_TURN_CREDENTIAL=losenord
+```
+
+Utan dessa variabler fungerar spelet som tidigare med STUN och automatisk återanslutning.
 - Ny responsiv design för mobil och dator
 - Klassisk och Blitz (15 sekunder per tur)
 - Animerade linjer, markörer, korsningar och resultat

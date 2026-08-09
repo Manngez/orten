@@ -9,7 +9,7 @@ import type { Country,GameMode,GameState,NordicCountry } from "./types/game";
 import { COUNTRY_META,UNLOCKABLE_COUNTRIES } from "./data/countryCatalog";
 
 type OnlineRole="offline"|"host"|"guest";
-type OnlineStatus="idle"|"connecting"|"connected"|"error";
+type OnlineStatus="idle"|"connecting"|"reconnecting"|"connected"|"error";
 type LobbyPlayer={id:string;name:string;connected:boolean;ready:boolean};
 type WireGameState=Omit<GameState,"usedCityNames">&{usedCityNames:string[]};
 type NetworkMessage=
@@ -27,6 +27,18 @@ const normalizeCode=(value:string)=>value.trim().toLocaleLowerCase("sv-SE").norm
 const roomPeerId=(code:string)=>`orten-${normalizeCode(code)}`;
 const makeId=()=>`guest-${crypto.randomUUID?.()||Date.now().toString(36)}`;
 const toWireState=(state:GameState):WireGameState=>({...state,usedCityNames:[...state.usedCityNames]});
+const peerOptions=()=>{
+  const iceServers:RTCIceServer[]=[{urls:["stun:stun.l.google.com:19302","stun:stun1.l.google.com:19302"]}],turnUrls=(import.meta.env.VITE_TURN_URLS as string|undefined)?.split(",").map(url=>url.trim()).filter(Boolean);
+  if(turnUrls?.length)iceServers.push({urls:turnUrls,username:import.meta.env.VITE_TURN_USERNAME as string|undefined,credential:import.meta.env.VITE_TURN_CREDENTIAL as string|undefined});
+  return{debug:1,config:{iceServers,iceCandidatePoolSize:4}};
+};
+const networkError=(type?:string)=>{
+  if(!navigator.onLine)return"Ingen internetanslutning. Kontrollera wifi eller mobildata.";
+  if(type==="peer-unavailable")return"Rummet hittades inte. Kontrollera rumskoden och att spelledaren är ansluten.";
+  if(type==="network"||type==="server-error"||type==="socket-error")return"Nätverksanslutningen misslyckades. Försök igen.";
+  if(type==="webrtc")return"En direktanslutning kunde inte skapas. Prova ett annat nätverk eller aktivera TURN-servern.";
+  return"Anslutningen misslyckades. Försök igen.";
+};
 
 function beep(){
   try{const C=window.AudioContext||(window as unknown as {webkitAudioContext:typeof AudioContext}).webkitAudioContext,c=new C(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=520;g.gain.setValueAtTime(.08,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.18);o.start();o.stop(c.currentTime+.18)}catch{}
@@ -95,7 +107,7 @@ export default function App(){
   const [nordicMenu,setNordicMenu]=useState(false),[arrivalCountry,setArrivalCountry]=useState<Exclude<NordicCountry,"sweden">|null>(null);
   const [showOrnskoldsvikEgg,setShowOrnskoldsvikEgg]=useState(false),[showSkellefteaPlayer,setShowSkellefteaPlayer]=useState(false),[showStenmark,setShowStenmark]=useState(false),[showFrolundaPlayer,setShowFrolundaPlayer]=useState(false),[showHv71Player,setShowHv71Player]=useState(false);
   const [cityEasterEgg,setCityEasterEgg]=useState<CityEasterEgg|null>(null);
-  const peerRef=useRef<Peer|null>(null),hostRef=useRef<DataConnection|null>(null),guestsRef=useRef<DataConnection[]>([]);
+  const peerRef=useRef<Peer|null>(null),hostRef=useRef<DataConnection|null>(null),guestsRef=useRef<DataConnection[]>([]),reconnectTimerRef=useRef<number|null>(null),reconnectNowRef=useRef<(()=>void)|null>(null),networkGenerationRef=useRef(0);
   const idsRef=useRef(new Map<DataConnection,string>()),stateRef=useRef(state),lobbyRef=useRef(lobby),placeCityRef=useRef(game.placeCity),countryRef=useRef(onlineCountry);
   const currentPlayerTapsRef=useRef(0),previousUnlockedRef=useRef(state.unlockedCountries),lastSaikTurnRef=useRef(-1),lastSkellefteaVisualTurnRef=useRef(-1),lastStenmarkTurnRef=useRef(-1),lastFrolundaTurnRef=useRef(-1),lastHv71TurnRef=useRef(-1),lastOrnskoldsvikTurnRef=useRef(-1),lastCityEggTurnRef=useRef(-1);
   stateRef.current=state;lobbyRef.current=lobby;placeCityRef.current=game.placeCity;countryRef.current=onlineCountry;
@@ -105,7 +117,7 @@ export default function App(){
   const runDevSearch=async()=>{const query=devSearch.trim();if(!query||devMusicLoading)return;setDevMusicLoading(true);setDevMusicStatus("Söker i Apple Music…");setDevResults([]);try{const results=await searchApple(query),unique=results.filter((track,index,list)=>list.findIndex(other=>(other.trackId&&other.trackId===track.trackId)||(`${other.artistName}-${other.trackName}`===`${track.artistName}-${track.trackName}`))===index).slice(0,5);setDevResults(unique);setDevMusicStatus(unique.length?`${unique.length} låtar hittades.`:"Inga låtar med förhandslyssning hittades.")}catch{setDevMusicStatus("Sökningen misslyckades. Försök igen.")}finally{setDevMusicLoading(false)}};
   const playSearchResult=(track:AppleTrack)=>{if(role!=="host"||!track.previewUrl)return;broadcast({type:"MUSIC",previewUrl:track.previewUrl,title:`${track.artistName} – ${track.trackName}`});setDevMusicStatus(`Spelar på deltagarnas enheter: ${track.trackName}`)};
   const setAndBroadcastLobby=useCallback((next:LobbyPlayer[])=>{lobbyRef.current=next;setLobby(next);broadcast({type:"LOBBY",players:next,country:countryRef.current})},[broadcast]);
-  const stopNetwork=useCallback(()=>{hostRef.current?.close();hostRef.current=null;guestsRef.current.forEach(c=>c.close());guestsRef.current=[];idsRef.current.clear();peerRef.current?.destroy();peerRef.current=null},[]);
+  const stopNetwork=useCallback(()=>{networkGenerationRef.current++;if(reconnectTimerRef.current!==null)window.clearTimeout(reconnectTimerRef.current);reconnectTimerRef.current=null;reconnectNowRef.current=null;hostRef.current?.close();hostRef.current=null;guestsRef.current.forEach(c=>c.close());guestsRef.current=[];idsRef.current.clear();peerRef.current?.destroy();peerRef.current=null},[]);
   const leaveOnline=useCallback(()=>{if(role==="guest"&&hostRef.current?.open)hostRef.current.send({type:"LEAVE",playerId} satisfies NetworkMessage);stopNetwork();setRole("offline");setStatus("idle");setLobby([]);setShowOnline(false);setPending(false);setError("");game.resetGame()},[game,playerId,role,stopNetwork]);
 
   const attachGuest=useCallback((connection:DataConnection)=>{
@@ -137,18 +149,30 @@ export default function App(){
     const code=normalizeCode(room);if(!name.trim()||!code){setError("Skriv namn och rumskod.");return}
     stopNetwork();game.resetGame();setRole("host");setPlayerId("host");setStatus("connecting");setError("");
     const players=[{id:"host",name:name.trim(),connected:true,ready:true}];setLobby(players);lobbyRef.current=players;
-    const peer=new Peer(roomPeerId(code));peerRef.current=peer;
-    peer.on("open",()=>setStatus("connected"));peer.on("connection",attachGuest);peer.on("error",e=>{setStatus("error");setError(e.type==="unavailable-id"?"Rumskoden används redan.":e.message)});
+    const generation=networkGenerationRef.current,peer=new Peer(roomPeerId(code),peerOptions());peerRef.current=peer;
+    peer.on("open",()=>{if(generation!==networkGenerationRef.current)return;setStatus("connected");setError("")});peer.on("connection",attachGuest);
+    peer.on("disconnected",()=>{if(generation!==networkGenerationRef.current||peer.destroyed)return;setStatus("reconnecting");setError("Kontakten med nätverket bröts. Återansluter…");reconnectTimerRef.current=window.setTimeout(()=>{if(!peer.destroyed&&peer.disconnected)peer.reconnect()},1200)});
+    peer.on("error",e=>{if(generation!==networkGenerationRef.current)return;setStatus("error");setError(e.type==="unavailable-id"?"Rumskoden används redan.":networkError(e.type))});
   };
   const joinRoom=()=>{
     void primeRemoteAudioPlayback();
     const code=normalizeCode(room);if(!name.trim()||!code){setError("Skriv namn och rumskod.");return}
     stopNetwork();game.resetGame();setRole("guest");setStatus("connecting");setError("");
     const id=localStorage.getItem(`orten-player-${code}`)||makeId();localStorage.setItem(`orten-player-${code}`,id);setPlayerId(id);
-    const peer=new Peer();peerRef.current=peer;
-    peer.on("open",()=>{const connection=peer.connect(roomPeerId(code),{reliable:true});hostRef.current=connection;connection.on("open",()=>{setStatus("connected");connection.send({type:"JOIN",id,name:name.trim()} satisfies NetworkMessage)});connection.on("data",raw=>{const message=raw as NetworkMessage;if(message.type==="LOBBY"){setLobby(message.players);setOnlineCountry(message.country)}if(message.type==="IDENTITY")setPlayerId(message.id);if(message.type==="STATE"){game.setRemoteState({...message.state,usedCityNames:new Set(message.state.usedCityNames)});setPending(false)}if(message.type==="TIMER")setLeft(message.seconds);if(message.type==="MUSIC"&&typeof message.previewUrl==="string"&&localStorage.getItem("blindkarta_sound")!=="off")playRemotePreview(message.previewUrl)});connection.on("close",()=>{setStatus("error");setError("Anslutningen bröts. Gå tillbaka och anslut igen.")});connection.on("error",()=>setStatus("error"))});
-    peer.on("error",()=>{setStatus("error");setError("Kunde inte ansluta till rummet.")});
+    const generation=networkGenerationRef.current,peer=new Peer(peerOptions());peerRef.current=peer;let attempts=0,openedOnce=false;
+    const connectToHost=()=>{if(generation!==networkGenerationRef.current||peer.destroyed)return;setStatus(attempts?"reconnecting":"connecting");const connection=peer.connect(roomPeerId(code),{reliable:true,serialization:"json"});hostRef.current=connection;let settled=false;
+      const retry=(type?:string)=>{if(settled||generation!==networkGenerationRef.current)return;settled=true;if(attempts>=5){setStatus("error");setError(networkError(type));return}attempts++;const delay=Math.min(1000*2**(attempts-1),8000);setStatus("reconnecting");setError(`Anslutningen bröts. Nytt försök om ${Math.ceil(delay/1000)} s…`);reconnectTimerRef.current=window.setTimeout(connectToHost,delay)};
+      connection.on("open",()=>{settled=false;openedOnce=true;attempts=0;setStatus("connected");setError("");connection.send({type:"JOIN",id,name:name.trim()} satisfies NetworkMessage)});
+      connection.on("data",raw=>{const message=raw as NetworkMessage;if(message.type==="LOBBY"){setLobby(message.players);setOnlineCountry(message.country)}if(message.type==="IDENTITY")setPlayerId(message.id);if(message.type==="STATE"){game.setRemoteState({...message.state,usedCityNames:new Set(message.state.usedCityNames)});setPending(false)}if(message.type==="TIMER")setLeft(message.seconds);if(message.type==="MUSIC"&&typeof message.previewUrl==="string"&&localStorage.getItem("blindkarta_sound")!=="off")playRemotePreview(message.previewUrl)});
+      connection.on("close",()=>retry(openedOnce?"network":"peer-unavailable"));connection.on("error",error=>retry((error as {type?:string}).type));
+    };
+    reconnectNowRef.current=connectToHost;
+    peer.on("open",connectToHost);peer.on("disconnected",()=>{if(generation!==networkGenerationRef.current||peer.destroyed)return;setStatus("reconnecting");setError("Kontakten med nätverket bröts. Återansluter…");reconnectTimerRef.current=window.setTimeout(()=>{if(!peer.destroyed&&peer.disconnected)peer.reconnect()},1200)});
+    peer.on("error",e=>{if(generation!==networkGenerationRef.current)return;if(e.type==="peer-unavailable"&&!openedOnce){setStatus("error");setError(networkError(e.type));return}if(!hostRef.current?.open){setStatus("error");setError(networkError(e.type))}});
   };
+
+  useEffect(()=>{const reconnectWhenOnline=()=>{const peer=peerRef.current;if(peer?.disconnected&&!peer.destroyed)peer.reconnect();else if(!hostRef.current?.open)reconnectNowRef.current?.()};window.addEventListener("online",reconnectWhenOnline);return()=>window.removeEventListener("online",reconnectWhenOnline)},[]);
+  useEffect(()=>()=>stopNetwork(),[stopNetwork]);
 
   useEffect(()=>{
     const latest=state.placedCities.at(-1);
@@ -246,12 +270,12 @@ export default function App(){
   const activateAllCountries=()=>{game.unlockCountries(UNLOCKABLE_COUNTRIES);setNordicMenu(false)};
 
   if(state.phase==="setup"){
-    if(showOnline)return <OnlineLobby role={role} status={status} name={name} room={room} error={error} lobby={lobby} mode={onlineMode} country={onlineCountry} playerId={playerId} onName={setName} onRoom={setRoom} onMode={setOnlineMode} onCountry={country=>{setOnlineCountry(country);if(role==="host")broadcast({type:"LOBBY",players:lobbyRef.current,country})}} onCreate={createRoom} onJoin={joinRoom} onReady={()=>{if(role!=="guest"||!hostRef.current?.open)return;void primeRemoteAudioPlayback().then(()=>hostRef.current?.send({type:"READY",playerId} satisfies NetworkMessage))}} onBack={leaveOnline} onStart={()=>role==="host"&&lobby.length>=2&&lobby.every(p=>p.connected&&p.ready)&&game.startGame(lobby.map(p=>p.name),onlineMode,onlineCountry)}/>;
+    if(showOnline)return <OnlineLobby role={role} status={status} name={name} room={room} error={error} lobby={lobby} mode={onlineMode} country={onlineCountry} playerId={playerId} onName={setName} onRoom={setRoom} onMode={setOnlineMode} onCountry={country=>{setOnlineCountry(country);if(role==="host")broadcast({type:"LOBBY",players:lobbyRef.current,country})}} onCreate={createRoom} onJoin={joinRoom} onRetry={role==="host"?createRoom:joinRoom} onReady={()=>{if(role!=="guest"||!hostRef.current?.open)return;void primeRemoteAudioPlayback().then(()=>hostRef.current?.send({type:"READY",playerId} satisfies NetworkMessage))}} onBack={leaveOnline} onStart={()=>role==="host"&&lobby.length>=2&&lobby.every(p=>p.connected&&p.ready)&&game.startGame(lobby.map(p=>p.name),onlineMode,onlineCountry)}/>;
     return <><GameSetup onStart={game.startGame} onStats={()=>setStats(true)} onOnline={()=>setShowOnline(true)}/>{stats&&<StatsPanel onClose={()=>setStats(false)}/>}</>;
   }
 
   return <main className="game-shell">
-    <header className="topbar"><button className="brand compact brand-secret" onClick={()=>{if(role!=="host")return;const taps=logoTaps+1;setLogoTaps(taps);if(taps>=5){setDevMenu(true);setLogoTaps(0)}}}><span className="brand-mark">O</span><span>ORTEN <b>{role==="offline"?"2.0":"ONLINE"}</b></span></button><div className="top-actions">{role!=="offline"&&<span className={`connection-pill ${status}`}>{status==="connected"?`RUM ${room.toUpperCase()}`:"ANSLUTER…"}</span>}<span className={`mode-pill ${state.mode}`}>{state.mode==="blitz"?"BLITZ · 15 S":state.mode==="duel"?`DUELL · ${state.duelBreakTarget} BRYTNING${state.duelBreakTarget===1?"":"AR"}`:"KLASSISK"}</span><button aria-label="Ljud av eller på" onClick={()=>setSound(v=>!v)}>{sound?"♪":"×"}</button><button onClick={()=>confirm("Avsluta matchen?")&&(role==="offline"?game.resetGame():leaveOnline())}>↗</button></div></header>
+    <header className="topbar"><button className="brand compact brand-secret" onClick={()=>{if(role!=="host")return;const taps=logoTaps+1;setLogoTaps(taps);if(taps>=5){setDevMenu(true);setLogoTaps(0)}}}><span className="brand-mark">O</span><span>ORTEN <b>{role==="offline"?"2.0":"ONLINE"}</b></span></button><div className="top-actions">{role!=="offline"&&<span className={`connection-pill ${status}`}>{status==="connected"?`RUM ${room.toUpperCase()}`:status==="error"?"NÄTVERKSFEL":"ÅTERANSLUTER…"}</span>}<span className={`mode-pill ${state.mode}`}>{state.mode==="blitz"?"BLITZ · 15 S":state.mode==="duel"?`DUELL · ${state.duelBreakTarget} BRYTNING${state.duelBreakTarget===1?"":"AR"}`:"KLASSISK"}</span><button aria-label="Ljud av eller på" onClick={()=>setSound(v=>!v)}>{sound?"♪":"×"}</button><button onClick={()=>confirm("Avsluta matchen?")&&(role==="offline"?game.resetGame():leaveOnline())}>↗</button></div></header>
     <section className="play-layout">
       <aside className="status-panel">
         <div className="turn-label">Tur {state.placedCities.length+1} · {game.activeCount} kvar</div>
@@ -288,7 +312,7 @@ export default function App(){
   </main>
 }
 
-function OnlineLobby({role,status,name,room,error,lobby,mode,country,playerId,onName,onRoom,onMode,onCountry,onCreate,onJoin,onReady,onBack,onStart}:{role:OnlineRole;status:OnlineStatus;name:string;room:string;error:string;lobby:LobbyPlayer[];mode:GameMode;country:Country;playerId:string;onName:(v:string)=>void;onRoom:(v:string)=>void;onMode:(v:GameMode)=>void;onCountry:(v:Country)=>void;onCreate:()=>void;onJoin:()=>void;onReady:()=>void;onBack:()=>void;onStart:()=>void}){
+function OnlineLobby({role,status,name,room,error,lobby,mode,country,playerId,onName,onRoom,onMode,onCountry,onCreate,onJoin,onRetry,onReady,onBack,onStart}:{role:OnlineRole;status:OnlineStatus;name:string;room:string;error:string;lobby:LobbyPlayer[];mode:GameMode;country:Country;playerId:string;onName:(v:string)=>void;onRoom:(v:string)=>void;onMode:(v:GameMode)=>void;onCountry:(v:Country)=>void;onCreate:()=>void;onJoin:()=>void;onRetry:()=>void;onReady:()=>void;onBack:()=>void;onStart:()=>void}){
   const ready=lobby.length>=2&&lobby.every(p=>p.connected&&p.ready),me=lobby.find(p=>p.id===playerId);
-  return <main className="online-shell"><section className="online-card"><div className="brand"><span className="brand-mark">O</span><span>ORTEN <b>ONLINE</b></span></div>{role==="offline"?<><p className="eyebrow">Spela på flera enheter</p><h1>Skapa eller anslut</h1><label>DITT NAMN<input value={name} onChange={e=>onName(e.target.value.slice(0,18))} placeholder="Exempel: Anna"/></label><label>RUMSKOD<input value={room} onChange={e=>onRoom(e.target.value.slice(0,24))} placeholder="Exempel: fredag"/></label><div className="online-actions"><button onClick={onCreate}>Skapa rum</button><button onClick={onJoin}>Gå med</button></div></>:<><p className="eyebrow">{status==="connected"?"Ansluten":"Ansluter…"}</p><h1>Rum {room.toUpperCase()}</h1>{role==="host"?<div className="country-grid online-country"><button className="selected" onClick={()=>onCountry("sweden")}>🇸🇪 Sverige</button><button disabled>🔒 Norge · 18 orter</button></div>:<p className="country-label">🇸🇪 Sverige</p>}<div className="lobby-list">{lobby.map(p=><div key={p.id}><i className={p.connected?"online":""}/><b>{p.name}</b><span>{p.id==="host"?"Spelledare":!p.connected?"Frånkopplad":p.ready?"Redo":"Väntar"}</span></div>)}</div>{role==="host"&&<><div className="mode-grid compact"><button className={mode==="classic"?"selected":""} onClick={()=>onMode("classic")}><strong>Klassisk</strong></button><button className={mode==="blitz"?"selected blitz":""} onClick={()=>onMode("blitz")}><strong>Blitz · 15 s</strong></button></div><button className="primary" disabled={!ready} onClick={onStart}>{ready?"Starta matchen":"Väntar på spelare"}<span>→</span></button></>}{role==="guest"&&(me?.ready?<p className="waiting-copy ready">✓ Redo. Väntar på spelledaren.</p>:<button className="primary audio-ready" onClick={onReady}>Jag är redo</button>)}</>}{error&&<p className="error">{error}</p>}<button className="text-button" onClick={onBack}>← Tillbaka</button></section></main>
+  return <main className="online-shell"><section className="online-card"><div className="brand"><span className="brand-mark">O</span><span>ORTEN <b>ONLINE</b></span></div>{role==="offline"?<><p className="eyebrow">Spela på flera enheter</p><h1>Skapa eller anslut</h1><label>DITT NAMN<input value={name} onChange={e=>onName(e.target.value.slice(0,18))} placeholder="Exempel: Anna"/></label><label>RUMSKOD<input value={room} onChange={e=>onRoom(e.target.value.slice(0,24))} placeholder="Exempel: fredag"/></label><div className="online-actions"><button onClick={onCreate}>Skapa rum</button><button onClick={onJoin}>Gå med</button></div></>:<><p className="eyebrow">{status==="connected"?"Ansluten":status==="error"?"Nätverksfel":status==="reconnecting"?"Återansluter…":"Ansluter…"}</p><h1>Rum {room.toUpperCase()}</h1>{role==="host"?<div className="country-grid online-country"><button className="selected" onClick={()=>onCountry("sweden")}>🇸🇪 Sverige</button><button disabled>🔒 Norge · 18 orter</button></div>:<p className="country-label">🇸🇪 Sverige</p>}<div className="lobby-list">{lobby.map(p=><div key={p.id}><i className={p.connected?"online":""}/><b>{p.name}</b><span>{p.id==="host"?"Spelledare":!p.connected?"Frånkopplad":p.ready?"Redo":"Väntar"}</span></div>)}</div>{role==="host"&&<><div className="mode-grid compact"><button className={mode==="classic"?"selected":""} onClick={()=>onMode("classic")}><strong>Klassisk</strong></button><button className={mode==="blitz"?"selected blitz":""} onClick={()=>onMode("blitz")}><strong>Blitz · 15 s</strong></button></div><button className="primary" disabled={!ready} onClick={onStart}>{ready?"Starta matchen":"Väntar på spelare"}<span>→</span></button></>}{role==="guest"&&(me?.ready?<p className="waiting-copy ready">✓ Redo. Väntar på spelledaren.</p>:<button className="primary audio-ready" disabled={status!=="connected"} onClick={onReady}>Jag är redo</button>)}</>}{error&&<p className="error">{error}</p>}{status==="error"&&<button className="primary" onClick={onRetry}>Försök ansluta igen <span>↻</span></button>}<button className="text-button" onClick={onBack}>← Tillbaka</button></section></main>
 }
