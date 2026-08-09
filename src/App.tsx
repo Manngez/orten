@@ -85,7 +85,7 @@ function playRemotePreview(url:string){remoteAudioElement??=new Audio();remoteAu
 
 export default function App(){
   const game=useGame(),{state}=game;
-  const [stats,setStats]=useState(false),[sound,setSound]=useState(()=>localStorage.getItem("blindkarta_sound")!=="off"),[left,setLeft]=useState(15),[showGameResult,setShowGameResult]=useState(true),[cityHistoryOpen,setCityHistoryOpen]=useState(true);
+  const [stats,setStats]=useState(false),[sound,setSound]=useState(()=>localStorage.getItem("blindkarta_sound")!=="off"),[left,setLeft]=useState(15),[showGameResult,setShowGameResult]=useState(true),[cityHistoryOpen,setCityHistoryOpen]=useState(()=>!window.matchMedia("(max-width: 760px)").matches);
   const [showOnline,setShowOnline]=useState(false),[role,setRole]=useState<OnlineRole>("offline"),[status,setStatus]=useState<OnlineStatus>("idle");
   const [name,setName]=useState(""),[room,setRoom]=useState(""),[error,setError]=useState(""),[playerId,setPlayerId]=useState("");
   const [lobby,setLobby]=useState<LobbyPlayer[]>([]),[onlineMode,setOnlineMode]=useState<GameMode>("classic"),[pending,setPending]=useState(false);
@@ -255,6 +255,12 @@ export default function App(){
     <section className="play-layout">
       <aside className="status-panel">
         <div className="turn-label">Tur {state.placedCities.length+1} · {game.activeCount} kvar</div>
+        <div className="mobile-game-summary" aria-label={`Tur ${state.placedCities.length+1}, ${game.currentPlayer} spelar, ${state.placedCities.length} orter valda`}>
+          <div><small>SPELARE</small><b><i style={{background:PLAYER_COLORS[state.currentPlayerIndex]}}/>{game.currentPlayer}</b></div>
+          <div><small>TUR</small><strong>{state.placedCities.length+1}</strong></div>
+          <div><small>ORTER</small><strong>{state.placedCities.length}</strong></div>
+          {state.mode==="blitz"&&<div className={`summary-timer ${left<=5?"danger":""}`}><small>TID</small><strong>{left}</strong></div>}
+        </div>
         <div className="current-player secret-trigger" onPointerDown={event=>event.preventDefault()} onClick={tapCurrentPlayer}><span style={{background:PLAYER_COLORS[state.currentPlayerIndex]}}>{state.currentPlayerIndex+1}</span><div><small>{isMyTurn?"DIN TUR":"NU SPELAR"}</small><h2>{game.currentPlayer}</h2></div>{state.mode==="blitz"&&<div className={`timer ${left<=5?"danger":""}`}><b>{left}</b><small>SEK</small></div>}</div>
         {state.mode==="blitz"&&<div className="timer-track"><i style={{width:`${left/15*100}%`}}/></div>}
         {!currentConnected&&<p className="connection-warning">Spelet väntar på att {game.currentPlayer} återansluter.</p>}
