@@ -126,3 +126,41 @@
 .city-history.collapsed .city-history-content{max-height:0;opacity:0;margin:0;pointer-events:none}
 .city-history-title:focus-visible{outline:2px solid #69dcd0;outline-offset:5px;border-radius:3px}
 @media(max-width:760px){.city-history{margin-top:4px}.city-history-title{min-height:38px}.city-history-content{max-height:190px;overflow-y:auto;overscroll-behavior:contain}}
+
+/* Map-first mobile game layout */
+.mobile-game-summary{display:none}
+@media(max-width:760px){
+  .game-shell{height:100dvh;min-height:0;overflow:hidden}
+  .topbar{height:48px;padding:0 10px;background:#061920ef}
+  .brand.compact{gap:7px;font-size:8px}
+  .brand.compact .brand-mark{width:27px;height:27px;font-size:12px}
+  .top-actions{gap:5px}
+  .top-actions button{width:30px;height:30px}
+  .play-layout{height:calc(100dvh - 48px)}
+  .status-panel{flex:0 0 auto;padding:7px 10px 0;background:#081e25}
+  .current-player,.timer-track{display:none}
+  .mobile-game-summary{display:flex;align-items:stretch;min-height:42px;border:1px solid #214348;border-radius:9px;background:#0b272e;overflow:hidden}
+  .mobile-game-summary>div{min-width:0;display:flex;flex:1;flex-direction:column;justify-content:center;padding:5px 10px;border-right:1px solid #214348}
+  .mobile-game-summary>div:first-child{flex:2.2}
+  .mobile-game-summary>div:last-child{border-right:0}
+  .mobile-game-summary small{color:#6f9997;font-size:7px;font-weight:900;letter-spacing:.15em}
+  .mobile-game-summary b{display:flex;align-items:center;gap:6px;min-width:0;margin-top:2px;overflow:hidden;color:#efffff;font:600 15px Georgia;text-overflow:ellipsis;white-space:nowrap}
+  .mobile-game-summary b i{flex:0 0 auto;width:7px;height:7px;border-radius:50%}
+  .mobile-game-summary strong{margin-top:1px;color:#69dcd0;font:600 17px Georgia}
+  .mobile-game-summary .summary-timer.danger strong{color:#ff686f}
+  .city-history{margin:6px 0 0;border-width:1px 0 0;border-radius:0;background:transparent}
+  .city-history-title{min-height:31px;padding:0 2px;font-size:8px}
+  .city-history-title>span{height:20px;min-width:20px;font-size:9px}
+  .city-history-title>i{font-size:14px}
+  .city-history-content{position:absolute;z-index:12;left:10px;right:10px;max-height:min(36dvh,250px);border:1px solid #2c5559;border-radius:0 0 9px 9px;background:#071c24f7;box-shadow:0 15px 35px #000a}
+  .city-history.collapsed .city-history-content{max-height:0;border-color:transparent}
+  .map-wrap{padding:0;isolation:isolate;background:radial-gradient(circle at 50% 43%,#123d47,#061920 76%)}
+  .map-wrap .board{width:100%;height:100%;aspect-ratio:auto}
+  .map-caption{left:9px;right:auto;bottom:8px;max-width:46%;padding:5px 9px;border-radius:7px;text-align:left}
+  .map-caption span{font-size:6px}
+  .map-caption strong{display:block;overflow:hidden;font-size:12px;text-overflow:ellipsis;white-space:nowrap}
+  .mobile-input{padding:7px 9px max(8px,env(safe-area-inset-bottom))}
+  .city-control form{min-height:43px;border-radius:9px;overflow:hidden}
+  .city-control label{padding:6px 12px}
+  .city-control form>button{width:48px}
+}
