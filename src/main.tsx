@@ -4,6 +4,7 @@ import "./index.css";
 import "./online.css";
 import "./country-menu.css";
 import "./germanySecretExtension";
+import "./onlineSecretFallback";
 import App from "./App";
 
 createRoot(document.getElementById("root")!).render(
