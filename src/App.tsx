@@ -144,31 +144,34 @@ export default function App(){
     connection.on("close",detach);connection.on("error",detach);
   },[setAndBroadcastLobby]);
 
-  const createRoom=()=>{
+  const createRoom=(autoRetry=0):void=>{
     void primeRemoteAudioPlayback();
     const code=normalizeCode(room);if(!name.trim()||!code){setError("Skriv namn och rumskod.");return}
-    stopNetwork();game.resetGame();setRole("host");setPlayerId("host");setStatus("connecting");setError("");
+    stopNetwork();game.resetGame();setRole("host");setPlayerId("host");setStatus(autoRetry?"reconnecting":"connecting");setError("");
     const players=[{id:"host",name:name.trim(),connected:true,ready:true}];setLobby(players);lobbyRef.current=players;
     const generation=networkGenerationRef.current,peer=new Peer(roomPeerId(code),peerOptions());peerRef.current=peer;
-    peer.on("open",()=>{if(generation!==networkGenerationRef.current)return;setStatus("connected");setError("")});peer.on("connection",attachGuest);
+    const startupTimer=window.setTimeout(()=>{if(generation!==networkGenerationRef.current||peer.destroyed||peer.open)return;peer.destroy();peerRef.current=null;if(autoRetry<2){setStatus("reconnecting");setError(`Anslutningstjänsten svarar inte. Nytt försök ${autoRetry+1}/2…`);reconnectTimerRef.current=window.setTimeout(()=>createRoom(autoRetry+1),1200);return}setStatus("error");setError("Kunde inte nå nätverkstjänsten inom 8 sekunder. Kontrollera internet och försök igen.")},8000);
+    peer.on("open",()=>{window.clearTimeout(startupTimer);if(generation!==networkGenerationRef.current)return;setStatus("connected");setError("")});peer.on("connection",attachGuest);
     peer.on("disconnected",()=>{if(generation!==networkGenerationRef.current||peer.destroyed)return;setStatus("reconnecting");setError("Kontakten med nätverket bröts. Återansluter…");reconnectTimerRef.current=window.setTimeout(()=>{if(!peer.destroyed&&peer.disconnected)peer.reconnect()},1200)});
-    peer.on("error",e=>{if(generation!==networkGenerationRef.current)return;setStatus("error");setError(e.type==="unavailable-id"?"Rumskoden används redan.":networkError(e.type))});
+    peer.on("error",e=>{window.clearTimeout(startupTimer);if(generation!==networkGenerationRef.current)return;setStatus("error");setError(e.type==="unavailable-id"?"Rumskoden används redan.":networkError(e.type))});
   };
-  const joinRoom=()=>{
+  const joinRoom=(autoRetry=0):void=>{
     void primeRemoteAudioPlayback();
     const code=normalizeCode(room);if(!name.trim()||!code){setError("Skriv namn och rumskod.");return}
-    stopNetwork();game.resetGame();setRole("guest");setStatus("connecting");setError("");
+    stopNetwork();game.resetGame();setRole("guest");setStatus(autoRetry?"reconnecting":"connecting");setError("");
     const id=localStorage.getItem(`orten-player-${code}`)||makeId();localStorage.setItem(`orten-player-${code}`,id);setPlayerId(id);
     const generation=networkGenerationRef.current,peer=new Peer(peerOptions());peerRef.current=peer;let attempts=0,openedOnce=false;
+    const startupTimer=window.setTimeout(()=>{if(generation!==networkGenerationRef.current||peer.destroyed||peer.open)return;peer.destroy();peerRef.current=null;if(autoRetry<2){setStatus("reconnecting");setError(`Anslutningstjänsten svarar inte. Nytt försök ${autoRetry+1}/2…`);reconnectTimerRef.current=window.setTimeout(()=>joinRoom(autoRetry+1),1200);return}setStatus("error");setError("Kunde inte nå nätverkstjänsten inom 8 sekunder. Kontrollera internet och försök igen.")},8000);
     const connectToHost=()=>{if(generation!==networkGenerationRef.current||peer.destroyed)return;setStatus(attempts?"reconnecting":"connecting");const connection=peer.connect(roomPeerId(code),{reliable:true,serialization:"json"});hostRef.current=connection;let settled=false;
-      const retry=(type?:string)=>{if(settled||generation!==networkGenerationRef.current)return;settled=true;if(attempts>=5){setStatus("error");setError(networkError(type));return}attempts++;const delay=Math.min(1000*2**(attempts-1),8000);setStatus("reconnecting");setError(`Anslutningen bröts. Nytt försök om ${Math.ceil(delay/1000)} s…`);reconnectTimerRef.current=window.setTimeout(connectToHost,delay)};
-      connection.on("open",()=>{settled=false;openedOnce=true;attempts=0;setStatus("connected");setError("");connection.send({type:"JOIN",id,name:name.trim()} satisfies NetworkMessage)});
+      const retry=(type?:string)=>{if(settled||generation!==networkGenerationRef.current)return;settled=true;if(attempts>=3){setStatus("error");setError(networkError(type));return}attempts++;const delay=Math.min(1000*2**(attempts-1),8000);setStatus("reconnecting");setError(`Anslutningen bröts. Nytt försök om ${Math.ceil(delay/1000)} s…`);reconnectTimerRef.current=window.setTimeout(connectToHost,delay)};
+      const connectionTimer=window.setTimeout(()=>{if(settled||connection.open)return;retry(openedOnce?"network":"peer-unavailable");connection.close()},8000);
+      connection.on("open",()=>{window.clearTimeout(connectionTimer);settled=false;openedOnce=true;attempts=0;setStatus("connected");setError("");connection.send({type:"JOIN",id,name:name.trim()} satisfies NetworkMessage)});
       connection.on("data",raw=>{const message=raw as NetworkMessage;if(message.type==="LOBBY"){setLobby(message.players);setOnlineCountry(message.country)}if(message.type==="IDENTITY")setPlayerId(message.id);if(message.type==="STATE"){game.setRemoteState({...message.state,usedCityNames:new Set(message.state.usedCityNames)});setPending(false)}if(message.type==="TIMER")setLeft(message.seconds);if(message.type==="MUSIC"&&typeof message.previewUrl==="string"&&localStorage.getItem("blindkarta_sound")!=="off")playRemotePreview(message.previewUrl)});
-      connection.on("close",()=>retry(openedOnce?"network":"peer-unavailable"));connection.on("error",error=>retry((error as {type?:string}).type));
+      connection.on("close",()=>{window.clearTimeout(connectionTimer);retry(openedOnce?"network":"peer-unavailable")});connection.on("error",error=>{window.clearTimeout(connectionTimer);retry((error as {type?:string}).type)});
     };
     reconnectNowRef.current=connectToHost;
-    peer.on("open",connectToHost);peer.on("disconnected",()=>{if(generation!==networkGenerationRef.current||peer.destroyed)return;setStatus("reconnecting");setError("Kontakten med nätverket bröts. Återansluter…");reconnectTimerRef.current=window.setTimeout(()=>{if(!peer.destroyed&&peer.disconnected)peer.reconnect()},1200)});
-    peer.on("error",e=>{if(generation!==networkGenerationRef.current)return;if(e.type==="peer-unavailable"&&!openedOnce){setStatus("error");setError(networkError(e.type));return}if(!hostRef.current?.open){setStatus("error");setError(networkError(e.type))}});
+    peer.on("open",()=>{window.clearTimeout(startupTimer);connectToHost()});peer.on("disconnected",()=>{if(generation!==networkGenerationRef.current||peer.destroyed)return;setStatus("reconnecting");setError("Kontakten med nätverket bröts. Återansluter…");reconnectTimerRef.current=window.setTimeout(()=>{if(!peer.destroyed&&peer.disconnected)peer.reconnect()},1200)});
+    peer.on("error",e=>{window.clearTimeout(startupTimer);if(generation!==networkGenerationRef.current)return;if(e.type==="peer-unavailable"&&!openedOnce){setStatus("error");setError(networkError(e.type));return}if(!hostRef.current?.open){setStatus("error");setError(networkError(e.type))}});
   };
 
   useEffect(()=>{const reconnectWhenOnline=()=>{const peer=peerRef.current;if(peer?.disconnected&&!peer.destroyed)peer.reconnect();else if(!hostRef.current?.open)reconnectNowRef.current?.()};window.addEventListener("online",reconnectWhenOnline);return()=>window.removeEventListener("online",reconnectWhenOnline)},[]);
@@ -270,7 +273,7 @@ export default function App(){
   const activateAllCountries=()=>{game.unlockCountries(UNLOCKABLE_COUNTRIES);setNordicMenu(false)};
 
   if(state.phase==="setup"){
-    if(showOnline)return <OnlineLobby role={role} status={status} name={name} room={room} error={error} lobby={lobby} mode={onlineMode} country={onlineCountry} playerId={playerId} onName={setName} onRoom={setRoom} onMode={setOnlineMode} onCountry={country=>{setOnlineCountry(country);if(role==="host")broadcast({type:"LOBBY",players:lobbyRef.current,country})}} onCreate={createRoom} onJoin={joinRoom} onRetry={role==="host"?createRoom:joinRoom} onReady={()=>{if(role!=="guest"||!hostRef.current?.open)return;void primeRemoteAudioPlayback().then(()=>hostRef.current?.send({type:"READY",playerId} satisfies NetworkMessage))}} onBack={leaveOnline} onStart={()=>role==="host"&&lobby.length>=2&&lobby.every(p=>p.connected&&p.ready)&&game.startGame(lobby.map(p=>p.name),onlineMode,onlineCountry)}/>;
+    if(showOnline)return <OnlineLobby role={role} status={status} name={name} room={room} error={error} lobby={lobby} mode={onlineMode} country={onlineCountry} playerId={playerId} onName={setName} onRoom={setRoom} onMode={setOnlineMode} onCountry={country=>{setOnlineCountry(country);if(role==="host")broadcast({type:"LOBBY",players:lobbyRef.current,country})}} onCreate={()=>createRoom()} onJoin={()=>joinRoom()} onRetry={role==="host"?()=>createRoom():()=>joinRoom()} onReady={()=>{if(role!=="guest"||!hostRef.current?.open)return;void primeRemoteAudioPlayback().then(()=>hostRef.current?.send({type:"READY",playerId} satisfies NetworkMessage))}} onBack={leaveOnline} onStart={()=>role==="host"&&lobby.length>=2&&lobby.every(p=>p.connected&&p.ready)&&game.startGame(lobby.map(p=>p.name),onlineMode,onlineCountry)}/>;
     return <><GameSetup onStart={game.startGame} onStats={()=>setStats(true)} onOnline={()=>setShowOnline(true)}/>{stats&&<StatsPanel onClose={()=>setStats(false)}/>}</>;
   }
 
