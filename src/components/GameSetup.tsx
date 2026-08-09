@@ -1,10 +1,11 @@
 import { useState } from "react";
 import type { Country, GameMode } from "../types/game";
 export const PLAYER_COLORS=["#fb7185","#38bdf8","#34d399","#fbbf24","#a78bfa","#f472b6","#22d3ee","#fb923c"];
-export default function GameSetup({onStart,onStats,onOnline}:{onStart:(p:string[],m:GameMode,c:Country)=>void;onStats:()=>void;onOnline:()=>void}){
-  const [count,setCount]=useState(2),[names,setNames]=useState(["",""]),[mode,setMode]=useState<GameMode>("classic"),[error,setError]=useState(""),[showRules,setShowRules]=useState(false);
+export default function GameSetup({onStart,onStats,onOnline}:{onStart:(p:string[],m:GameMode,c:Country,duelBreakTarget?:number)=>void;onStats:()=>void;onOnline:()=>void}){
+  const [count,setCount]=useState(2),[names,setNames]=useState(["",""]),[mode,setMode]=useState<GameMode>("classic"),[duelBreakTarget,setDuelBreakTarget]=useState(1),[error,setError]=useState(""),[showRules,setShowRules]=useState(false);
   const changeCount=(n:number)=>{setCount(n);setNames(v=>Array.from({length:n},(_,i)=>v[i]||""))};
-  const start=()=>{const p=names.map((n,i)=>n.trim()||`Spelare ${i+1}`);if(new Set(p.map(n=>n.toLowerCase())).size<p.length){setError("Alla spelare behöver unika namn.");return}onStart(p,mode,"sweden")};
+  const selectMode=(next:GameMode)=>{setMode(next);if(next==="duel"&&count!==2)changeCount(2)};
+  const start=()=>{const p=names.map((n,i)=>n.trim()||`Spelare ${i+1}`);if(new Set(p.map(n=>n.toLowerCase())).size<p.length){setError("Alla spelare behöver unika namn.");return}onStart(p,mode,"sweden",duelBreakTarget)};
   return <main className="setup-shell">
     <section className="hero">
       <div className="landing-actions">
@@ -24,10 +25,12 @@ export default function GameSetup({onStart,onStats,onOnline}:{onStart:(p:string[
       </div>
       <div className="section-label">Spelläge</div>
       <div className="mode-grid">
-        <button className={mode==="classic"?"selected":""} onClick={()=>setMode("classic")}><span className="mode-icon">⌖</span><span><strong>Klassisk</strong><small>Obegränsad betänketid</small></span></button>
-        <button className={mode==="blitz"?"selected blitz":""} onClick={()=>setMode("blitz")}><span className="mode-icon blitz-icon">ϟ</span><span><strong>Blitz · 15 s</strong><small>Snabbt, nervigt, skoningslöst</small></span></button>
+        <button className={mode==="classic"?"selected":""} onClick={()=>selectMode("classic")}><span className="mode-icon">⌖</span><span><strong>Klassisk</strong><small>Obegränsad betänketid</small></span></button>
+        <button className={mode==="blitz"?"selected blitz":""} onClick={()=>selectMode("blitz")}><span className="mode-icon blitz-icon">ϟ</span><span><strong>Blitz · 15 s</strong><small>Snabbt, nervigt, skoningslöst</small></span></button>
+        <button className={mode==="duel"?"selected duel":""} onClick={()=>selectMode("duel")}><span className="mode-icon duel-icon">⚔</span><span><strong>Duell</strong><small>Två spelare · varsin linje</small></span></button>
       </div>
-      <div className="section-row"><span className="section-label">Spelare</span><div className="stepper"><button onClick={()=>changeCount(Math.max(2,count-1))}>−</button><b>{count}</b><button onClick={()=>changeCount(Math.min(8,count+1))}>+</button></div></div>
+      {mode==="duel"&&<div className="section-row duel-target"><span className="section-label">Brytningar för vinst</span><div className="stepper"><button onClick={()=>setDuelBreakTarget(Math.max(1,duelBreakTarget-1))}>−</button><b>{duelBreakTarget}</b><button onClick={()=>setDuelBreakTarget(Math.min(5,duelBreakTarget+1))}>+</button></div></div>}
+      <div className="section-row"><span className="section-label">Spelare</span><div className="stepper"><button disabled={mode==="duel"} onClick={()=>changeCount(Math.max(2,count-1))}>−</button><b>{count}</b><button disabled={mode==="duel"} onClick={()=>changeCount(Math.min(8,count+1))}>+</button></div></div>
       <div className="name-grid">{names.map((name,i)=><label key={i}><span style={{background:PLAYER_COLORS[i]}}>{i+1}</span><i className="player-icon">♟</i><input value={name} onChange={e=>setNames(v=>v.map((x,j)=>j===i?e.target.value:x))} placeholder={`Spelare ${i+1}`} maxLength={18}/></label>)}</div>
       {error&&<p className="error">{error}</p>}
       <button className="primary" onClick={start}>Starta matchen <span>→</span></button>

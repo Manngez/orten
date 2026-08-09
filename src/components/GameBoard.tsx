@@ -4,7 +4,7 @@ import { EUROPE_HEIGHT,EUROPE_OUTLINES,EUROPE_VIEWBOX,EUROPE_WIDTH } from "../da
 import { COUNTRY_META } from "../data/countryCatalog";
 import { PLAYER_COLORS } from "./GameSetup";
 
-const MAX_ZOOM=36;
+const MAX_ZOOM=72;
 
 const darkFill=(hex:string)=>{const value=hex.replace("#","");if(value.length!==6)return"#172c32";const channel=(start:number)=>Math.round(Number.parseInt(value.slice(start,start+2),16)*.18+12).toString(16).padStart(2,"0");return`#${channel(0)}${channel(2)}${channel(4)}`};
 const countryStyle=(country:NordicCountry)=>({stroke:COUNTRY_META[country].color,fill:darkFill(COUNTRY_META[country].color)});
@@ -76,11 +76,11 @@ const crossingPoint=(lines:GameState["crossingLines"])=>{
 export default function GameBoard({state}:{state:GameState}){
   const countries=[state.country,...state.unlockedCountries.filter(country=>country!==state.country)] as NordicCountry[];
   const countryKey=countries.join("|"),defaultView=useMemo(()=>fitCountries(countries),[countryKey]);
-  const [view,setView]=useState(defaultView),pointers=useRef(new Map<number,{x:number;y:number}>()),gesture=useRef<{distance:number;center:{x:number;y:number};view:{x:number;y:number;scale:number}}|null>(null),frame=useRef<number|null>(null),queuedView=useRef<typeof view|null>(null);
+  const [view,setView]=useState(defaultView),viewRef=useRef(defaultView),pointers=useRef(new Map<number,{x:number;y:number}>()),gesture=useRef<{distance:number;center:{x:number;y:number};view:{x:number;y:number;scale:number}}|null>(null),frame=useRef<number|null>(null),queuedView=useRef<typeof view|null>(null);
   const compactMap=countries.length>10;
-  useEffect(()=>setView(defaultView),[defaultView]);
+  useEffect(()=>{viewRef.current=defaultView;setView(defaultView)},[defaultView]);
   const newestUnlocked=state.unlockedCountries.at(-1);
-  const scheduleView=(next:typeof view)=>{queuedView.current=next;if(frame.current!==null)return;frame.current=requestAnimationFrame(()=>{frame.current=null;if(queuedView.current)setView(queuedView.current)})};
+  const scheduleView=(next:typeof view)=>{viewRef.current=next;queuedView.current=next;if(frame.current!==null)return;frame.current=requestAnimationFrame(()=>{frame.current=null;if(queuedView.current)setView(queuedView.current)})};
   const countryLayer=useMemo(()=>countries.map(country=>{const unlocked=country!==state.country,animate=!compactMap&&unlocked&&country===newestUnlocked,style=countryStyle(country),outline=fastOutline(country,compactMap);return outline?<path key={country} d={outline} fill={style.fill} fillRule="evenodd" stroke={style.stroke} strokeWidth={unlocked?.7:1.5} strokeOpacity={unlocked?.5:1} vectorEffect="non-scaling-stroke" pointerEvents="none" className={animate?`country-draw ${country}`:""}/>:null}),[state.country,state.unlockedCountries,newestUnlocked,compactMap]);
   const lineLayer=useMemo(()=>state.lines.map((s,i)=>{const crossing=state.crossingLines?.includes(s),latest=i===state.lines.length-1;return <line key={i} x1={s.from.x} y1={s.from.y} x2={s.to.x} y2={s.to.y} stroke={crossing?"#ff3347":PLAYER_COLORS[s.playerIndex]} strokeOpacity={crossing||latest?1:.58} strokeWidth={crossing?5:latest?3:1.8} vectorEffect="non-scaling-stroke" strokeLinecap="round" filter={crossing||latest?"url(#lineGlow)":undefined} className={`${latest?"draw-line ":""}${crossing?"crossing-line":""}`}/>}),[state.lines,state.crossingLines]);
   const intersection=useMemo(()=>crossingPoint(state.crossingLines),[state.crossingLines]);
@@ -89,8 +89,8 @@ export default function GameBoard({state}:{state:GameState}){
     event.currentTarget.setPointerCapture(event.pointerId);
     pointers.current.set(event.pointerId,clientToSvgPoint(event.currentTarget,event.clientX,event.clientY));
     const points=[...pointers.current.values()];
-    if(points.length===2){const[a,b]=points;gesture.current={distance:Math.max(.001,Math.hypot(a.x-b.x,a.y-b.y)),center:{x:(a.x+b.x)/2,y:(a.y+b.y)/2},view}}
-    else gesture.current={distance:0,center:points[0],view};
+    if(points.length===2){const[a,b]=points;gesture.current={distance:Math.max(.001,Math.hypot(a.x-b.x,a.y-b.y)),center:{x:(a.x+b.x)/2,y:(a.y+b.y)/2},view:viewRef.current}}
+    else gesture.current={distance:0,center:points[0],view:viewRef.current};
   };
   const onPointerMove=(event:React.PointerEvent<SVGSVGElement>)=>{
     if(!pointers.current.has(event.pointerId)||!gesture.current)return;
@@ -106,14 +106,14 @@ export default function GameBoard({state}:{state:GameState}){
     pointers.current.delete(event.pointerId);
     if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);
     const remaining=[...pointers.current.values()];
-    gesture.current=remaining.length===1?{distance:0,center:remaining[0],view}:null;
+    gesture.current=remaining.length===1?{distance:0,center:remaining[0],view:viewRef.current}:null;
   };
   const zoom=(event:React.WheelEvent<SVGSVGElement>)=>{
     event.preventDefault();
     const point=clientToSvgPoint(event.currentTarget,event.clientX,event.clientY);
-    setView(current=>{const scale=Math.min(MAX_ZOOM,Math.max(.65,current.scale*(event.deltaY>0?.9:1.1))),anchorX=(point.x-current.x)/current.scale,anchorY=(point.y-current.y)/current.scale;return{scale,x:point.x-anchorX*scale,y:point.y-anchorY*scale}});
+    setView(current=>{const scale=Math.min(MAX_ZOOM,Math.max(.65,current.scale*(event.deltaY>0?.9:1.1))),anchorX=(point.x-current.x)/current.scale,anchorY=(point.y-current.y)/current.scale,next={scale,x:point.x-anchorX*scale,y:point.y-anchorY*scale};viewRef.current=next;return next});
   };
-  const zoomBy=(factor:number)=>setView(current=>{const scale=Math.min(MAX_ZOOM,Math.max(.65,current.scale*factor)),anchorX=(EUROPE_WIDTH/2-current.x)/current.scale,anchorY=(EUROPE_HEIGHT/2-current.y)/current.scale;return{scale,x:EUROPE_WIDTH/2-anchorX*scale,y:EUROPE_HEIGHT/2-anchorY*scale}});
+  const zoomBy=(factor:number)=>setView(current=>{const scale=Math.min(MAX_ZOOM,Math.max(.65,current.scale*factor)),anchorX=(EUROPE_WIDTH/2-current.x)/current.scale,anchorY=(EUROPE_HEIGHT/2-current.y)/current.scale,next={scale,x:EUROPE_WIDTH/2-anchorX*scale,y:EUROPE_HEIGHT/2-anchorY*scale};viewRef.current=next;return next});
   return <div className="board nordic-board"><svg viewBox={EUROPE_VIEWBOX} preserveAspectRatio="xMidYMid meet" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp} onWheel={zoom}>
     <defs><filter id="lineGlow"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><filter id="countryGlow"><feGaussianBlur stdDeviation="5" result="glow"/><feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge></filter><pattern id="grid" width="26" height="26" patternUnits="userSpaceOnUse"><path d="M26 0H0V26" fill="none" stroke="#61b7b0" strokeOpacity=".08" strokeWidth=".6"/></pattern></defs>
     <rect width={EUROPE_WIDTH} height={EUROPE_HEIGHT} fill="#071b24"/><rect width={EUROPE_WIDTH} height={EUROPE_HEIGHT} fill="url(#grid)"/>
@@ -123,5 +123,5 @@ export default function GameBoard({state}:{state:GameState}){
       {intersection&&<g className="crossing-point" transform={`translate(${intersection.x} ${intersection.y})`}><circle r={12/view.scale} fill="#ff3347" fillOpacity=".3"/><circle r={6/view.scale} fill="#ff3347" stroke="#fff" strokeWidth="2" vectorEffect="non-scaling-stroke"/></g>}
       {cityLayer}
     </g>
-  </svg><div className="map-tools"><button onClick={()=>zoomBy(1.35)} aria-label="Zooma in">+</button><button onClick={()=>zoomBy(1/1.35)} aria-label="Zooma ut">−</button><button onClick={()=>setView(defaultView)} aria-label="Anpassa kartan till aktiva länder">⌂</button><span>Nyp eller dra kartan</span></div></div>
+  </svg><div className="map-tools"><button onClick={()=>zoomBy(1.35)} aria-label="Zooma in">+</button><button onClick={()=>zoomBy(1/1.35)} aria-label="Zooma ut">−</button><button onClick={()=>{viewRef.current=defaultView;setView(defaultView)}} aria-label="Anpassa kartan till aktiva länder">⌂</button><span>Nyp eller dra kartan</span></div></div>
 }
