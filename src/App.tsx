@@ -5,6 +5,7 @@ import GameSetup,{PLAYER_COLORS} from "./components/GameSetup";
 import GameBoard from "./components/GameBoard";
 import CityInput from "./components/CityInput";
 import StatsPanel from "./components/StatsPanel";
+import "./camera.css";
 import type { Country,GameMode,GameState,NordicCountry } from "./types/game";
 import { COUNTRY_META,UNLOCKABLE_COUNTRIES } from "./data/countryCatalog";
 
@@ -24,6 +25,8 @@ type NetworkMessage=
   |{type:"EASTER";cityName:string;turnNumber:number}
   |{type:"TIMER";seconds:number}
   |{type:"MUSIC";previewUrl:string;title:string}
+  |{type:"PHOTO_REQUEST";playerId:string;dataUrl:string}
+  |{type:"PHOTO";playerName:string;dataUrl:string}
   |{type:"LEAVE";playerId:string};
 
 const normalizeCode=(value:string)=>value.trim().toLocaleLowerCase("sv-SE").normalize("NFD").replace(/\p{Diacritic}/gu,"").replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"");
@@ -111,12 +114,14 @@ export default function App(){
   const [nordicMenu,setNordicMenu]=useState(false),[arrivalCountry,setArrivalCountry]=useState<Exclude<NordicCountry,"sweden">|null>(null);
   const [showOrnskoldsvikEgg,setShowOrnskoldsvikEgg]=useState(false),[showSkellefteaPlayer,setShowSkellefteaPlayer]=useState(false),[showStenmark,setShowStenmark]=useState(false),[showFrolundaPlayer,setShowFrolundaPlayer]=useState(false),[showHv71Player,setShowHv71Player]=useState(false);
   const [cityEasterEgg,setCityEasterEgg]=useState<CityEasterEgg|null>(null);
+  const [cameraOpen,setCameraOpen]=useState(false),[sharedPhoto,setSharedPhoto]=useState<{dataUrl:string;playerName:string}|null>(null);
   const peerRef=useRef<Peer|null>(null),hostRef=useRef<DataConnection|null>(null),guestsRef=useRef<DataConnection[]>([]),reconnectTimerRef=useRef<number|null>(null),reconnectNowRef=useRef<(()=>void)|null>(null),networkGenerationRef=useRef(0);
   const idsRef=useRef(new Map<DataConnection,string>()),stateRef=useRef(state),lobbyRef=useRef(lobby),placeCityRef=useRef(game.placeCity),countryRef=useRef(onlineCountry),pendingMoveRef=useRef<{resolve:(result:MoveSubmitResult)=>void;timer:number}|null>(null);
-  const currentPlayerTapsRef=useRef(0),previousUnlockedRef=useRef(state.unlockedCountries),lastSaikTurnRef=useRef(-1),lastSkellefteaVisualTurnRef=useRef(-1),lastStenmarkTurnRef=useRef(-1),lastFrolundaTurnRef=useRef(-1),lastHv71TurnRef=useRef(-1),lastOrnskoldsvikTurnRef=useRef(-1),lastCityEggTurnRef=useRef(-1);
+  const currentPlayerTapsRef=useRef(0),previousUnlockedRef=useRef(state.unlockedCountries),lastSaikTurnRef=useRef(-1),lastSkellefteaVisualTurnRef=useRef(-1),lastStenmarkTurnRef=useRef(-1),lastFrolundaTurnRef=useRef(-1),lastHv71TurnRef=useRef(-1),lastOrnskoldsvikTurnRef=useRef(-1),lastCityEggTurnRef=useRef(-1),photoTimerRef=useRef<number|null>(null),photoBusyRef=useRef(false);
   stateRef.current=state;lobbyRef.current=lobby;placeCityRef.current=game.placeCity;countryRef.current=onlineCountry;
 
   const broadcast=useCallback((message:NetworkMessage)=>guestsRef.current.forEach(c=>c.open&&c.send(message)),[]);
+  const showPhoto=useCallback((photo:{dataUrl:string;playerName:string})=>{if(photoTimerRef.current!==null)window.clearTimeout(photoTimerRef.current);photoBusyRef.current=true;setSharedPhoto(photo);photoTimerRef.current=window.setTimeout(()=>{setSharedPhoto(null);photoBusyRef.current=false;photoTimerRef.current=null},6000)},[]);
   const finishPendingMove=useCallback((result:MoveSubmitResult)=>{const pendingMove=pendingMoveRef.current;if(pendingMove){window.clearTimeout(pendingMove.timer);pendingMoveRef.current=null;pendingMove.resolve(result)}setPending(false)},[]);
   const triggerNetworkEaster=useCallback((cityName:string,turnNumber:number)=>{
     const city=normalizeSong(cityName);
@@ -155,10 +160,11 @@ export default function App(){
       }
       if(message.type==="LEAVE"&&message.playerId===authenticated)setAndBroadcastLobby(lobbyRef.current.map(p=>p.id===authenticated?{...p,connected:false}:p));
       if(message.type==="READY"&&message.playerId===authenticated)setAndBroadcastLobby(lobbyRef.current.map(p=>p.id===authenticated?{...p,connected:true,ready:true}:p));
+      if(message.type==="PHOTO_REQUEST"&&message.playerId===authenticated&&!photoBusyRef.current&&typeof message.dataUrl==="string"&&message.dataUrl.startsWith("data:image/jpeg;base64,")&&message.dataUrl.length<350000){const playerName=lobbyRef.current.find(p=>p.id===authenticated)?.name||"En spelare",photo={dataUrl:message.dataUrl,playerName};showPhoto(photo);broadcast({type:"PHOTO",...photo})}
     });
     const detach=()=>{const id=idsRef.current.get(connection);guestsRef.current=guestsRef.current.filter(c=>c!==connection);idsRef.current.delete(connection);if(id)setAndBroadcastLobby(lobbyRef.current.map(p=>p.id===id?{...p,connected:false,ready:false}:p))};
     connection.on("close",detach);connection.on("error",detach);
-  },[setAndBroadcastLobby]);
+  },[broadcast,setAndBroadcastLobby,showPhoto]);
 
   const createRoom=(autoRetry=0):void=>{
     void primeRemoteAudioPlayback();
@@ -182,7 +188,7 @@ export default function App(){
       const retry=(type?:string)=>{if(settled||generation!==networkGenerationRef.current)return;settled=true;if(attempts>=3){setStatus("error");setError(networkError(type));finishPendingMove({success:false,message:"Anslutningen bröts. Försök igen."});return}attempts++;const delay=Math.min(1000*2**(attempts-1),8000);setStatus("reconnecting");setError(`Anslutningen bröts. Nytt försök om ${Math.ceil(delay/1000)} s…`);reconnectTimerRef.current=window.setTimeout(connectToHost,delay)};
       const connectionTimer=window.setTimeout(()=>{if(settled||connection.open)return;retry(openedOnce?"network":"peer-unavailable");connection.close()},8000);
       connection.on("open",()=>{window.clearTimeout(connectionTimer);settled=false;openedOnce=true;attempts=0;setStatus("connected");setError("");connection.send({type:"JOIN",id,name:name.trim()} satisfies NetworkMessage)});
-      connection.on("data",raw=>{const message=raw as NetworkMessage;if(message.type==="LOBBY"){setLobby(message.players);setOnlineCountry(message.country)}if(message.type==="IDENTITY")setPlayerId(message.id);if(message.type==="STATE")game.setRemoteState({...message.state,usedCityNames:new Set(message.state.usedCityNames)});if(message.type==="MOVE_RESULT"&&message.playerId===id)finishPendingMove({success:message.success,...(message.message?{message:message.message}:{})});if(message.type==="EASTER")triggerNetworkEaster(message.cityName,message.turnNumber);if(message.type==="TIMER")setLeft(message.seconds);if(message.type==="MUSIC"&&typeof message.previewUrl==="string"&&localStorage.getItem("blindkarta_sound")!=="off")playRemotePreview(message.previewUrl)});
+      connection.on("data",raw=>{const message=raw as NetworkMessage;if(message.type==="LOBBY"){setLobby(message.players);setOnlineCountry(message.country)}if(message.type==="IDENTITY")setPlayerId(message.id);if(message.type==="STATE")game.setRemoteState({...message.state,usedCityNames:new Set(message.state.usedCityNames)});if(message.type==="MOVE_RESULT"&&message.playerId===id)finishPendingMove({success:message.success,...(message.message?{message:message.message}:{})});if(message.type==="EASTER")triggerNetworkEaster(message.cityName,message.turnNumber);if(message.type==="TIMER")setLeft(message.seconds);if(message.type==="MUSIC"&&typeof message.previewUrl==="string"&&localStorage.getItem("blindkarta_sound")!=="off")playRemotePreview(message.previewUrl);if(message.type==="PHOTO"&&typeof message.dataUrl==="string"&&message.dataUrl.startsWith("data:image/jpeg;base64,")&&message.dataUrl.length<350000)showPhoto({dataUrl:message.dataUrl,playerName:message.playerName})});
       connection.on("close",()=>{window.clearTimeout(connectionTimer);retry(openedOnce?"network":"peer-unavailable")});connection.on("error",error=>{window.clearTimeout(connectionTimer);retry((error as {type?:string}).type)});
     };
     reconnectNowRef.current=connectToHost;
@@ -191,7 +197,7 @@ export default function App(){
   };
 
   useEffect(()=>{const reconnectWhenOnline=()=>{const peer=peerRef.current;if(peer?.disconnected&&!peer.destroyed)peer.reconnect();else if(!hostRef.current?.open)reconnectNowRef.current?.()};window.addEventListener("online",reconnectWhenOnline);return()=>window.removeEventListener("online",reconnectWhenOnline)},[]);
-  useEffect(()=>()=>stopNetwork(),[stopNetwork]);
+  useEffect(()=>()=>{stopNetwork();if(photoTimerRef.current!==null)window.clearTimeout(photoTimerRef.current)},[stopNetwork]);
 
   useEffect(()=>{
     const latest=state.placedCities.at(-1);
@@ -279,6 +285,10 @@ export default function App(){
   const isMyTurn=role==="offline"||currentOnlineId===playerId;
   const currentConnected=role==="offline"||lobby[state.currentPlayerIndex]?.connected===true;
   const submit=async(cityName:string)=>{
+    if(role!=="offline"&&normalizeSong(cityName)==="kamera"){
+      if(photoBusyRef.current)return{success:false,message:"Vänta tills den aktuella bilden har försvunnit."};
+      setCameraOpen(true);return{success:true};
+    }
     if(role==="guest"){
       const connection=hostRef.current;
       if(!isMyTurn||pending||!connection?.open)return{success:false,message:"Vänta tills det är din tur."};
@@ -287,6 +297,7 @@ export default function App(){
     }
     const result=await game.placeCity(cityName);if(result.success&&sound)beep();return result;
   };
+  const sendCameraPhoto=(dataUrl:string)=>{if(role==="offline"||photoBusyRef.current)return;if(role==="guest"){const connection=hostRef.current;if(connection?.open)connection.send({type:"PHOTO_REQUEST",playerId,dataUrl} satisfies NetworkMessage);return}const photo={dataUrl,playerName:name.trim()||"Spelledaren"};showPhoto(photo);broadcast({type:"PHOTO",...photo})};
   const tapCurrentPlayer=()=>{if(role==="guest")return;currentPlayerTapsRef.current++;if(currentPlayerTapsRef.current<10)return;currentPlayerTapsRef.current=0;setNordicMenu(true)};
   const activateCountry=(country:Exclude<NordicCountry,"sweden">)=>{if(country===state.country||state.unlockedCountries.includes(country))return;const meta=COUNTRY_META[country];if(meta.anthem){if(role==="offline")playRemotePreview(meta.anthem);else broadcast({type:"MUSIC",previewUrl:meta.anthem,title:`${meta.name} – nationalsång`})}game.unlockCountry(country);setNordicMenu(false)};
   const activateAllCountries=()=>{game.unlockCountries(UNLOCKABLE_COUNTRIES);setNordicMenu(false)};
@@ -325,6 +336,8 @@ export default function App(){
     {showStenmark&&<img className="tarnaby-stenmark-egg" src="./tarnaby-stenmark.png" alt="Tecknad Ingemar Stenmark i en slalomsväng"/>}
     {cityEasterEgg&&<div className="city-easter-egg" role="dialog" aria-label={`Hemligt motiv för ${cityEasterEgg.city}`}><button onClick={()=>setCityEasterEgg(null)} aria-label="Stäng">×</button><img src={`./easter-eggs/${cityEasterEgg.image}`} alt={cityEasterEgg.alt}/></div>}
     {showOrnskoldsvikEgg&&<div className="ornskoldsvik-egg" role="dialog" aria-label="Hemligt hockeymotiv"><button onClick={()=>setShowOrnskoldsvikEgg(false)} aria-label="Stäng">×</button><img src="./ornskoldsvik-easter-egg.webp" alt="En sur Modo-spelare går ner i en källare medan en glad Björklöven-spelare går upp"/><div><b>ÖRNSKÖLDSVIK HITTAD</b><span>Olika riktningar i hockeylivet…</span><i/></div></div>}
+    {cameraOpen&&<CameraCapture onClose={()=>setCameraOpen(false)} onSend={dataUrl=>{sendCameraPhoto(dataUrl);setCameraOpen(false)}}/>}
+    {sharedPhoto&&<div className="shared-photo" role="dialog" aria-label={`Foto från ${sharedPhoto.playerName}`}><button onClick={()=>{if(photoTimerRef.current!==null)window.clearTimeout(photoTimerRef.current);photoBusyRef.current=false;setSharedPhoto(null)}} aria-label="Stäng">×</button><img src={sharedPhoto.dataUrl} alt={`Foto taget av ${sharedPhoto.playerName}`}/><div><b>📸 HÄLSNING FRÅN</b><span>{sharedPhoto.playerName}</span><i/></div></div>}
     {nordicMenu&&<div className="modal-backdrop nordic-secret"><section className="nordic-menu"><p>HEMLIG MENY</p><h2>Aktivera ett land</h2><button disabled={UNLOCKABLE_COUNTRIES.every(country=>state.unlockedCountries.includes(country))} onClick={activateAllCountries}><span>🌍</span><b>Alla länder</b><small>Aktivera alla</small></button>{UNLOCKABLE_COUNTRIES.map(country=>{const meta=COUNTRY_META[country],active=country===state.country||state.unlockedCountries.includes(country);return <button key={country} disabled={active} onClick={()=>activateCountry(country)}><span>{meta.flag}</span><b>{meta.name}</b><small>{active?"Aktiverat":"Lås upp"}</small></button>})}<button className="text-button" onClick={()=>setNordicMenu(false)}>Stäng</button></section></div>}
     {state.lastElimination&&state.phase==="playing"&&<button className="elimination" onClick={game.clearLastElimination}><b>LINJEKORSNING</b><span>{state.mode==="duel"?`${state.players.find(player=>player!==state.lastElimination?.playerName)} tar en brytning`: `${state.lastElimination.playerName} är utslagen`}</span><small>Tryck för att stänga</small></button>}
     {state.phase==="gameover"&&state.crossingLines&&!showGameResult&&<div className="crossing-reveal"><b>LINJEKORSNING</b><span>De två röda linjerna korsades här</span><button onClick={()=>setShowGameResult(true)}>Visa resultat →</button></div>}
@@ -332,6 +345,14 @@ export default function App(){
     {devMenu&&role==="host"&&<div className="dev-menu"><b>UTVECKLARLÄGE · SPELA PÅ DELTAGARNAS MOBILER</b><form className="dev-search" onSubmit={event=>{event.preventDefault();void runDevSearch()}}><input aria-label="Sök artist eller låt" value={devSearch} onChange={event=>setDevSearch(event.target.value)} placeholder="Sök artist eller låt…"/><button disabled={devMusicLoading||!devSearch.trim()} type="submit">Sök</button></form>{devResults.length>0&&<div className="dev-results">{devResults.map((track,index)=><button key={track.trackId??`${track.artistName}-${track.trackName}-${index}`} onClick={()=>playSearchResult(track)}><span>♫</span><span><strong>{track.trackName}</strong><small>{track.artistName}</small></span></button>)}</div>}<em>SNABBVAL</em>{DEV_SONGS.map(song=><button disabled={devMusicLoading} key={`${song.artist}-${song.title}`} onClick={()=>void startRoomMusic(song)}>♫ {song.artist} – {song.title}</button>)}{devMusicStatus&&<small>{devMusicStatus}</small>}<a href="https://music.apple.com/se/search" target="_blank" rel="noreferrer">Förhandslyssning via Apple Music ↗</a><button className="dev-close" onClick={()=>setDevMenu(false)}>Stäng</button></div>}
     {stats&&<StatsPanel onClose={()=>setStats(false)}/>}
   </main>
+}
+
+function CameraCapture({onClose,onSend}:{onClose:()=>void;onSend:(dataUrl:string)=>void}){
+  const videoRef=useRef<HTMLVideoElement>(null),streamRef=useRef<MediaStream|null>(null);
+  const [captured,setCaptured]=useState(""),[cameraError,setCameraError]=useState(""),[loading,setLoading]=useState(true);
+  useEffect(()=>{let active=true;void navigator.mediaDevices?.getUserMedia({video:{facingMode:"user",width:{ideal:960},height:{ideal:1280}},audio:false}).then(stream=>{if(!active){stream.getTracks().forEach(track=>track.stop());return}streamRef.current=stream;const video=videoRef.current;if(video){video.srcObject=stream;void video.play()}setLoading(false)}).catch(()=>{if(active){setLoading(false);setCameraError("Kameran kunde inte öppnas. Kontrollera kamerabehörigheten i webbläsaren.")}});return()=>{active=false;streamRef.current?.getTracks().forEach(track=>track.stop())}},[]);
+  const takePhoto=()=>{const video=videoRef.current;if(!video?.videoWidth)return;const maxWidth=640,scale=Math.min(1,maxWidth/video.videoWidth),canvas=document.createElement("canvas");canvas.width=Math.round(video.videoWidth*scale);canvas.height=Math.round(video.videoHeight*scale);const context=canvas.getContext("2d");if(!context)return;context.translate(canvas.width,0);context.scale(-1,1);context.drawImage(video,0,0,canvas.width,canvas.height);setCaptured(canvas.toDataURL("image/jpeg",.68))};
+  return <div className="camera-backdrop" role="dialog" aria-modal="true" aria-label="Ta ett foto"><section className="camera-card"><header><div><b>📸 KAMERA</b><span>Ta en bild som visas för alla spelare</span></div><button onClick={onClose} aria-label="Stäng kameran">×</button></header><div className="camera-view">{cameraError?<p>{cameraError}</p>:captured?<img src={captured} alt="Förhandsvisning av ditt foto"/>:<><video ref={videoRef} playsInline muted/>{loading&&<span>Öppnar kameran…</span>}</>}</div>{cameraError?<button className="camera-secondary" onClick={onClose}>STÄNG</button>:captured?<div className="camera-actions"><button className="camera-secondary" onClick={()=>setCaptured("")}>TA OM</button><button className="camera-send" onClick={()=>onSend(captured)}>SKICKA BILD</button></div>:<div className="camera-actions"><button className="camera-secondary" onClick={onClose}>AVBRYT</button><button className="camera-send" disabled={loading} onClick={takePhoto}>TA BILD</button></div>}<small>Bilden visas i sex sekunder och sparas inte.</small></section></div>
 }
 
 function OnlineLobby({role,status,name,room,error,lobby,mode,duelBreakTarget,country,playerId,onName,onRoom,onMode,onDuelBreakTarget,onCountry,onCreate,onJoin,onRetry,onReady,onBack,onStart}:{role:OnlineRole;status:OnlineStatus;name:string;room:string;error:string;lobby:LobbyPlayer[];mode:GameMode;duelBreakTarget:number;country:Country;playerId:string;onName:(v:string)=>void;onRoom:(v:string)=>void;onMode:(v:GameMode)=>void;onDuelBreakTarget:(v:number)=>void;onCountry:(v:Country)=>void;onCreate:()=>void;onJoin:()=>void;onRetry:()=>void;onReady:()=>void;onBack:()=>void;onStart:()=>void}){
