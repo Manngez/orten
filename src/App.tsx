@@ -193,7 +193,13 @@ export default function App(){
     };
     reconnectNowRef.current=connectToHost;
     peer.on("open",()=>{window.clearTimeout(startupTimer);connectToHost()});peer.on("disconnected",()=>{if(generation!==networkGenerationRef.current||peer.destroyed)return;setStatus("reconnecting");setError("Kontakten med nätverket bröts. Återansluter…");reconnectTimerRef.current=window.setTimeout(()=>{if(!peer.destroyed&&peer.disconnected)peer.reconnect()},1200)});
-    peer.on("error",e=>{window.clearTimeout(startupTimer);if(generation!==networkGenerationRef.current)return;if(e.type==="peer-unavailable"&&!openedOnce){setStatus("error");setError(networkError(e.type));finishPendingMove({success:false,message:"Rummet kunde inte nås. Försök igen."});return}if(!hostRef.current?.open){setStatus("error");setError(networkError(e.type));finishPendingMove({success:false,message:"Anslutningen misslyckades. Försök igen."})}});
+    peer.on("error",e=>{window.clearTimeout(startupTimer);if(generation!==networkGenerationRef.current)return;
+      // PeerJS reports peer-unavailable both on the Peer and the DataConnection.
+      // The connection handler owns retries; treating the Peer event as terminal
+      // cancelled the retry flow before a newly created room had propagated.
+      if(e.type==="peer-unavailable")return;
+      if(!hostRef.current?.open){setStatus("error");setError(networkError(e.type));finishPendingMove({success:false,message:"Anslutningen misslyckades. Försök igen."})}
+    });
   };
 
   useEffect(()=>{const reconnectWhenOnline=()=>{const peer=peerRef.current;if(peer?.disconnected&&!peer.destroyed)peer.reconnect();else if(!hostRef.current?.open)reconnectNowRef.current?.()};window.addEventListener("online",reconnectWhenOnline);return()=>window.removeEventListener("online",reconnectWhenOnline)},[]);
