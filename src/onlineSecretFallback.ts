@@ -1,3 +1,5 @@
+import "./prankCameraPopupFix";
+
 const RESET_AFTER_MS=2500;
 
 let musicTapCount=0;
