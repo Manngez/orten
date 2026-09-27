@@ -24,6 +24,7 @@ export function useGame(){
     const placed:PlacedCity={city,point,playerIndex,turnNumber:state.placedCities.length+1,points},segment:LineSegment|null=previous?{from:previous.point,to:point,playerIndex,turnNumber:placed.turnNumber}:null,crossableLines=state.mode==="duel"?state.lines.filter(line=>line.playerIndex!==playerIndex):state.lines,crossing=segment?findCrossing(segment,crossableLines):null,used=new Set(state.usedCityNames);used.add(canonicalKey);
     const scores=[...state.scores];scores[playerIndex]+=points;let eliminated=[...state.eliminated],eliminationOrder=[...state.eliminationOrder];if(crossing&&state.mode!=="race"){eliminated[playerIndex]=true;scores[playerIndex]=Math.max(0,scores[playerIndex]-100);eliminationOrder.push({playerName:state.players[playerIndex],cityName:city.name})}
     const placedCities=[...state.placedCities,placed],lines=segment?[...state.lines,segment]:state.lines,active=eliminated.filter(v=>!v).length;
+    const unlockedCountries=[...new Set([...state.unlockedCountries,...progressionCountries(placedCities.length).filter(country=>country!==state.country)])];
     if(state.mode==="race"){
       // Five turns per player. Crossings cost points, but never eliminate a player.
       if(crossing)scores[playerIndex]=Math.max(0,scores[playerIndex]-100);
@@ -33,7 +34,6 @@ export function useGame(){
       setState({...state,phase:finished?"gameover":"playing",placedCities,lines,usedCityNames:used,unlockedCountries,eliminated:state.players.map(()=>false),eliminationOrder:[],currentPlayerIndex:finished?playerIndex:nextActive(state.eliminated,playerIndex),lastElimination:null,crossingLines:crossing,winner,scores});
       return{success:true,points:crossing?points-100:points};
     }
-    const unlockedCountries=[...new Set([...state.unlockedCountries,...progressionCountries(placedCities.length).filter(country=>country!==state.country)])];
     if(state.mode==="duel"&&crossing){
       const winnerIndex=(playerIndex+1)%2,breaks=[...state.breaks];breaks[winnerIndex]=(breaks[winnerIndex]||0)+1;eliminated=state.players.map(()=>false);
       const winner=breaks[winnerIndex]>=state.duelBreakTarget?state.players[winnerIndex]:null;
