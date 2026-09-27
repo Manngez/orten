@@ -12,7 +12,7 @@ export interface Point { x: number; y: number }
 export interface PlacedCity { city: City; point: Point; playerIndex: number; turnNumber: number; points: number }
 export interface LineSegment { from: Point; to: Point; playerIndex: number; turnNumber: number }
 export type GamePhase = "setup" | "playing" | "gameover";
-export type GameMode = "classic" | "blitz" | "duel";
+export type GameMode = "classic" | "blitz" | "duel" | "race";
 export interface PlayerStats {
   name: string; totalGames: number; wins: number; citiesPlaced: number;
   timesEliminated: number; totalScore: number; bestScore: number;
