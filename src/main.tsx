@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import "./online.css";
 import "./country-menu.css";
+import "./orten3.css";
 import "./germanySecretExtension";
 import "./onlineSecretFallback";
 import "./prankCamera";
