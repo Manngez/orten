@@ -1,64 +1,19 @@
-# ORTEN
+# Kartkamp
 
-**Dra linjen. Undvik krysset.**
+Ett nytt geografiskt strategispel byggt på Ortens kartmotor och ortsdata.
 
-Ett lokalt geografispel för 2–8 spelare. Nämn svenska orter i tur och ordning. Varje ny ort kopplas till den föregående; korsar den nya linjen en äldre linje blir spelaren utslagen.
+## Poängjakten
 
-## Nytt i 3.0
+Två till åtta spelare turas om att skriva svenska orter. Varje ort kopplas till den föregående med en linje. Sträckans längd ger poäng, minst 10 poäng per drag. En korsning drar av 100 poäng (poängen kan aldrig bli negativa), men spelaren fortsätter. Efter fem drag per spelare vinner den med högst poäng. Vid lika poäng vinner spelaren som först nådde poängen.
 
-- Ny kompakt startvy för mobil och dator med tydligare väg från spelval till match
-- Förenklad information om länder, spellägen och hur linjerna fungerar
-- Behåller lokal multiplayer, onlinerum, kartzoom, ortsdata och tidigare spelregler
+Originalreglerna finns som **Sista kvar**, med utslagning vid korsning. Blitz och Duell finns också kvar. Onlinerum använder tills vidare de tre ursprungliga lägena; Poängjakten är lokalt spel på samma skärm.
 
-## Från 2.0
-
-- Landval mellan Sverige och Norge i både lokalt spel och onlinerum
-- 1 831 norska postorter och korrekt norsk kustlinje, helt offline i bygget
-- Hemlig Norden-meny: klicka tio gånger på området ”DIN TUR / NU SPELAR” och välj Finland, Norge eller Danmark
-- Länderna delar samma geografiska kartprojektion så att gränser, orter och linjer hamnar rätt
-- Upplåsta landsgränser ritas under tio sekunder med neonmarkör och nationalsång
-- 2 270 finska, 1 831 norska och 614 danska postorter finns offline
-- Kartan kan zoomas med nypgest eller mushjul, panoreras genom att dra och återställas med kartknappen
-- En löpande, färgkodad lista visar alla valda orter och vem som valde dem
-- Online för 2–8 spelare med rumskod
-- Varje spelare skriver orten på sin egen mobil när det är deras tur
-- Gemensamt synkroniserad karta, poäng, turordning och Blitz-timer
-- Anslutningsstatus och återanslutning med samma rumskod
-
-## TURN för onlineanslutning
-
-Onlinefunktionen använder publika STUN-servrar som standard. För nätverk där en direkt WebRTC-anslutning blockeras kan bygget kompletteras med en TURN-server:
-
-```env
-VITE_TURN_URLS=turn:turn.example.com:3478,turns:turn.example.com:5349
-VITE_TURN_USERNAME=anvandare
-VITE_TURN_CREDENTIAL=losenord
-```
-
-Utan dessa variabler fungerar spelet som tidigare med STUN och automatisk återanslutning.
-- Ny responsiv design för mobil och dator
-- Klassisk och Blitz (15 sekunder per tur)
-- Animerade linjer, markörer, korsningar och resultat
-- Poäng baserade på sträckans längd, med avdrag vid utslagning
-- Tydligare turstatus, resultattavla och mobil inmatning
-- Förbättrad lokal statistik: poäng, rekord, orter och vinster
-- Valfria diskreta ljudeffekter via Web Audio
-- Offlinevänlig: ortsdata och spelkod ingår i bygget
-- Enfilspaket i `dist/index.html`, lämpligt för GitHub Pages
-
-## Kör lokalt
+## Utveckling
 
 ```bash
-npm install
+npm ci
 npm run dev
-```
-
-## Produktion
-
-```bash
 npm run build
 ```
 
-Ladda upp innehållet i `dist` till GitHub Pages. Eftersom bygget skapar en fristående HTML-fil fungerar det även under ett projektnamn utan särskild `base`-inställning.
-
-Entrémusiken är inspelningar av de finska, norska och danska nationalsångerna från Wikimedia Commons. Inspelningarnas respektive licensvillkor anges på deras filsidor.
+GitHub Actions bygger och publicerar `dist` på GitHub Pages vid push till `main`. Appen använder React, Vite och en lokalt paketerad ortsdatabas. Onlinerum använder PeerJS/WebRTC och kan kompletteras med TURN via `VITE_TURN_URLS`, `VITE_TURN_USERNAME` och `VITE_TURN_CREDENTIAL`.
