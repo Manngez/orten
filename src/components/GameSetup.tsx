@@ -12,16 +12,19 @@ export default function GameSetup({onStart,onStats,onOnline}:{onStart:(p:string[
         <button className="round-action help-action" onClick={()=>setShowRules(true)} aria-label="Så spelar du">?</button>
         <button className="leaderboard-action" onClick={onStats}><span>♛</span> Topplista</button>
       </div>
+      <div className="version-badge"><span className="live-dot"/> NY VERSION <b>3.0</b></div>
       <div className="orten-logo" aria-label="ORTEN">
         <span className="pin-logo"><i/></span><h1>ORTEN</h1>
       </div>
       <p className="landing-subtitle">Det nordiska geografispelet där<br/>nästa ort kan bli din <em>sista.</em></p>
+      <div className="landing-route" aria-hidden="true"><span>UMEÅ</span><i/><span>STOCKHOLM</span><i/><span>?</span></div>
     </section>
     <section className="setup-card">
+      <div className="setup-heading"><span>01 / MATCHINSTÄLLNINGAR</span><h2>Välj ditt äventyr</h2><p>Samla spelarna. Skriv orter. Dra linjen utan att korsa den.</p></div>
       <div className="section-label">Land</div>
       <div className="country-grid">
         <button className="selected"><span>🇸🇪</span> Sverige</button>
-        <button disabled title="Låses upp när 18 orter har placerats"><span>🔒</span> Norge · 18 orter</button>
+        <button disabled title="Låses upp när 18 orter har placerats"><span>🔒</span> Norge · vid 18 orter</button>
       </div>
       <div className="section-label">Spelläge</div>
       <div className="mode-grid">

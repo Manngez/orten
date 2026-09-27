@@ -4,7 +4,13 @@
 
 Ett lokalt geografispel för 2–8 spelare. Nämn svenska orter i tur och ordning. Varje ny ort kopplas till den föregående; korsar den nya linjen en äldre linje blir spelaren utslagen.
 
-## Nytt i 2.0
+## Nytt i 3.0
+
+- Ny kompakt startvy för mobil och dator med tydligare väg från spelval till match
+- Förenklad information om länder, spellägen och hur linjerna fungerar
+- Behåller lokal multiplayer, onlinerum, kartzoom, ortsdata och tidigare spelregler
+
+## Från 2.0
 
 - Landval mellan Sverige och Norge i både lokalt spel och onlinerum
 - 1 831 norska postorter och korrekt norsk kustlinje, helt offline i bygget
